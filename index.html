@@ -1972,61 +1972,6 @@
 		finishVotingPhase();
 	}
 
-	async function submitVote(vote) {
-		if (
-			currentPhase !== "voting" ||
-			currentRoundNumber < 1 ||
-			votingIndex < 0 ||
-			votingIndex >= votingItems.length ||
-			localVoteMade
-		) {
-			return;
-		}
-
-		const item = votingItems[votingIndex];
-
-		if (item.creatorId === myPeerId) {
-			return;
-		}
-
-		localVoteMade = true;
-		votingVotes[item.id] ||= {};
-		votingVotes[item.id][myPeerId] = vote;
-
-		voteButtons.forEach(function(button) {
-			button.classList.toggle(
-				"selected",
-				button.dataset.vote === vote
-			);
-		});
-
-		await supabaseClient
-			.from("votes")
-			.upsert(
-				{
-					round_id: currentRoundId,
-					voter_id: myPeerId,
-					meme_id: item.id,
-					vote: vote
-				},
-				{ onConflict: "round_id,voter_id,meme_id" }
-			);
-
-		const message = {
-			type: "vote",
-			senderId: myPeerId,
-			roundId: currentRoundId,
-			index: votingIndex,
-			memeId: item.id,
-			vote: vote
-		};
-
-		if (isHost) {
-			handleRemoteVote(message);
-		} else {
-			await broadcastMessage(message);
-		}
-	}
 
 	async function submitVote(vote) {
 		if (
@@ -2044,13 +1989,13 @@
 			return;
 		}
 	
-		// Remember the new vote locally.
+		// Store the new vote locally immediately.
 		localVoteMade = true;
 	
 		votingVotes[item.id] ||= {};
 		votingVotes[item.id][myPeerId] = vote;
 	
-		// Update the visual selection.
+		// Update the selected button.
 		voteButtons.forEach(function(button) {
 			button.classList.toggle(
 				"selected",
@@ -2058,46 +2003,66 @@
 			);
 		});
 	
-		showcaseStatus.innerText = "Vote changed to " + vote.toUpperCase() + ".";
+		showcaseStatus.innerText = "Saving vote...";
 	
-		// Supabase upsert will UPDATE the existing vote if one already exists.
-		const result = await supabaseClient
-			.from("votes")
-			.upsert(
-				{
-					round_id: currentRoundId,
-					voter_id: myPeerId,
-					meme_id: item.id,
-					vote: vote
-				},
-				{
-					onConflict: "round_id,voter_id,meme_id"
+		try {
+			const result = await supabaseClient
+				.from("votes")
+				.upsert(
+					{
+						round_id: currentRoundId,
+						voter_id: myPeerId,
+						meme_id: item.id,
+						vote: vote
+					},
+					{
+						onConflict: "round_id,voter_id,meme_id"
+					}
+				);
+	
+			if (result.error) {
+				throw result.error;
+			}
+	
+			showcaseStatus.innerText =
+				"Vote saved: " + vote.toUpperCase() + ".";
+	
+			const message = {
+				type: "vote",
+				senderId: myPeerId,
+				roundId: currentRoundId,
+				index: votingIndex,
+				memeId: item.id,
+				vote: vote
+			};
+	
+			if (isHost) {
+				handleRemoteVote(message);
+			} else {
+				const sent = await broadcastMessage(message);
+	
+				if (!sent) {
+					console.warn("Vote was saved, but the host was not notified.");
+					showcaseStatus.innerText =
+						"Vote saved, but sync failed.";
 				}
-			);
+			}
 	
-		if (result.error) {
-			console.error("Vote save failed:", result.error);
-			showcaseStatus.innerText = "Failed to save vote.";
-			return;
-		}
+		} catch (error) {
+			console.error("Vote save failed:", error);
 	
-		// Tell the host about the NEW vote.
-		const message = {
-			type: "vote",
-			senderId: myPeerId,
-			roundId: currentRoundId,
-			index: votingIndex,
-			memeId: item.id,
-			vote: vote
-		};
+			showcaseStatus.innerText =
+				"Failed to save vote.";
 	
-		if (isHost) {
-			handleRemoteVote(message);
-		} else {
-			await broadcastMessage(message);
+			// Undo the local change if saving failed.
+			if (votingVotes[item.id]) {
+				delete votingVotes[item.id][myPeerId];
+			}
+	
+			localVoteMade = false;
+			clearVoteSelection();
 		}
 	}
-
 	function handleRemoteVote(message) {
 		if (message.roundId !== currentRoundId) {
 			return;
