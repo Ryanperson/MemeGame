@@ -6,7 +6,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MakeItMeme</title>
 
-<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 	* {
@@ -611,10 +611,7 @@
 	const MAX_PLAYERS = 16;
 	const ROUND_LENGTH = 60000;
 	const SHOWCASE_LENGTH = 15000;
-	const ROOM_PREFIX = "makeitmeme-";
-
-
-	// ============================================================
+		// ============================================================
 	// DOM
 	// ============================================================
 
@@ -696,25 +693,81 @@
 
 
 	// ============================================================
-	// NETWORK STATE
+	// ============================================================
+	// SUPABASE CONFIG
 	// ============================================================
 
-	let peer = null;
-	let hostConnection = null;
+	// Replace these two values with your Supabase project values.
+	// Supabase Dashboard -> Project Settings -> API
+	const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+	const SUPABASE_PUBLISHABLE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
 
-	let isHost = false;
+	const supabaseClient =
+		window.supabase.createClient(
+			SUPABASE_URL,
+			SUPABASE_PUBLISHABLE_KEY
+		);
+
+
+	// ============================================================
+	// AUTHENTICATE ANONYMOUSLY
+	// ============================================================
+
+	async function ensureSupabaseUser() {
+
+		const existing =
+			await supabaseClient.auth.getUser();
+
+		if (
+			existing.data &&
+			existing.data.user
+		) {
+			myPeerId =
+				existing.data.user.id;
+
+			return true;
+		}
+
+		const result =
+			await supabaseClient.auth.signInAnonymously();
+
+		if (result.error) {
+
+			console.error(
+				"Anonymous sign-in failed:",
+				result.error
+			);
+
+			setMainMenuStatus(
+				"Supabase anonymous sign-in failed."
+			);
+
+			return false;
+		}
+
+		myPeerId =
+			result.data.user.id;
+
+		return true;
+	}
+
+
+	// ============================================================
+	// NETWORK STATE
+	// ============================================================
 
 	let myPeerId = null;
 	let myName = "";
 
+	let isHost = false;
+
 	let roomCodeValue = "";
+	let hostUserId = null;
 
-	let hostPeerId = null;
-
-	let connections = new Map();
+	let realtimeChannel = null;
+	let realtimeChannelReady = false;
 
 	let participants = [];
-
 	let gameStarted = false;
 
 
@@ -727,170 +780,296 @@
 	let roundSubmitted = false;
 
 	let roundResults = {};
+	let expectedPlayerIds = [];
+	let currentRoundId = null;
+	let hostRoundEndTimer = null;
 
 
 	// ============================================================
-	// SHOWCASE STATE
+	// SUPABASE CHANNEL
 	// ============================================================
 
-	let showcaseItems = [];
-	let showcaseStartedAt = 0;
-	let showcaseTimer = null;
-	let currentShowcaseIndex = -1;
+	async function createRealtimeChannel() {
 
+		if (realtimeChannel) {
 
-	// ============================================================
-	// MEME STATE
-	// ============================================================
-
-	let memes = [];
-
-	let currentMeme = null;
-	let currentImage = null;
-	let textBoxes = [];
-
-	let draggingBox = null;
-	let dragOffsetX = 0;
-	let dragOffsetY = 0;
-
-	let imageLoadToken = 0;
-
-
-	// ============================================================
-	// SCREEN CONTROL
-	// ============================================================
-
-	function showScreen(screen) {
-
-		mainMenu.classList.remove("active");
-		lobbyScreen.classList.remove("active");
-		editorScreen.classList.remove("active");
-		showcaseScreen.classList.remove("active");
-
-		screen.classList.add("active");
-	}
-
-
-	// ============================================================
-	// STATUS
-	// ============================================================
-
-	function setMainMenuStatus(text) {
-
-		mainMenuStatus.innerText = text;
-	}
-
-
-	// ============================================================
-	// LOAD MEMES
-	// ============================================================
-
-	async function loadMemes() {
-
-		try {
-
-			const response =
-				await fetch(
-					"https://api.imgflip.com/get_memes?type=image"
+			try {
+				await supabaseClient.removeChannel(
+					realtimeChannel
 				);
+			} catch (error) {
+				console.error(error);
+			}
+		}
 
-			const data =
-				await response.json();
+		realtimeChannelReady = false;
 
-			if (!data.success) {
-				throw new Error(
-					"Failed to load memes."
+		realtimeChannel =
+			supabaseClient.channel(
+			"makeitmeme:" +
+			roomCodeValue,
+			{
+				config: {
+					presence: {
+						key: myPeerId
+					}
+				}
+			}
+		);
+
+		realtimeChannel.on(
+			"broadcast",
+			{
+				event: "game"
+			},
+			function(payload) {
+
+				if (!payload || !payload.payload) {
+					return;
+				}
+
+				handleRealtimeMessage(
+					payload.payload
 				);
 			}
+		);
 
-			memes =
-				data.data.memes;
+		realtimeChannel.on(
+			"presence",
+			{
+				event: "sync"
+			},
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
 
-			console.log(
-				"Loaded memes:",
-				memes.length
-			);
+		realtimeChannel.on(
+			"presence",
+			{
+				event: "join"
+			},
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
 
-		} catch (error) {
+		realtimeChannel.on(
+			"presence",
+			{
+				event: "leave"
+			},
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
 
-			console.error(error);
+		const status =
+			await realtimeChannel.subscribe();
 
-			setMainMenuStatus(
-				"Failed to load memes."
-			);
-		}
-	}
+		if (status !== "SUBSCRIBED") {
 
-
-	// ============================================================
-	// RANDOM MEME
-	// ============================================================
-
-	function getRandomMeme() {
-
-		if (memes.length === 0) {
-			return null;
-		}
-
-		const randomIndex =
-			Math.floor(
-				Math.random() *
-				memes.length
-			);
-
-		return memes[randomIndex];
-	}
-
-
-	// ============================================================
-	// CREATE ROOM CODE
-	// ============================================================
-
-	function generateRoomCode() {
-
-		const characters =
-			"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-		let code = "";
-
-		for (let i = 0; i < 6; i++) {
-
-			code +=
-				characters[
-					Math.floor(
-						Math.random() *
-						characters.length
-					)
-				];
-		}
-
-		return code;
-	}
-
-
-	// ============================================================
-	// VALIDATE NAME
-	// ============================================================
-
-	function validateName() {
-
-		const name =
-			nameInput.value
-				.trim()
-				.slice(0, 20);
-
-		if (name === "") {
-
-			setMainMenuStatus(
-				"Enter your name first."
+			console.error(
+				"Realtime subscription failed:",
+				status
 			);
 
 			return false;
 		}
 
-		myName = name;
+		realtimeChannelReady = true;
+
+		await realtimeChannel.track(
+			{
+				user_id: myPeerId,
+				name: myName,
+				is_host: isHost,
+				joined_at:
+					new Date().toISOString()
+			}
+		);
+
+		updateParticipantsFromPresence();
 
 		return true;
+	}
+
+
+	function updateParticipantsFromPresence() {
+
+		if (!realtimeChannel) {
+			return;
+		}
+
+		const state =
+			realtimeChannel.presenceState();
+
+		const found = [];
+		const seen = new Set();
+
+		for (const key of Object.keys(state)) {
+
+			const states =
+				state[key] || [];
+
+			for (const presence of states) {
+
+				const id =
+					presence.user_id ||
+					key;
+
+				if (seen.has(id)) {
+					continue;
+				}
+
+				seen.add(id);
+
+				found.push(
+					{
+						id: id,
+						name:
+							String(
+								presence.name ||
+								"Player"
+							).slice(0, 20),
+						isHost:
+							Boolean(
+								presence.is_host
+							)
+					}
+				);
+			}
+		}
+
+		participants =
+			found.slice(0, MAX_PLAYERS);
+
+		const host =
+			participants.find(
+				function(player) {
+					return player.isHost;
+				}
+			);
+
+		if (host) {
+			hostUserId = host.id;
+		}
+
+		updatePlayerList();
+
+		if (
+			isHost &&
+			gameStarted
+		) {
+			checkRoundResults();
+		}
+	}
+
+
+	async function broadcastMessage(message) {
+
+		if (
+			!realtimeChannel ||
+			!realtimeChannelReady
+		) {
+			return;
+		}
+
+		try {
+
+			await realtimeChannel.send(
+				{
+					type: "broadcast",
+					event: "game",
+					payload: message
+				}
+			);
+
+		} catch (error) {
+
+			console.error(
+				"Broadcast error:",
+				error
+			);
+		}
+	}
+
+
+	// ============================================================
+	// REALTIME MESSAGE HANDLER
+	// ============================================================
+
+	function handleRealtimeMessage(message) {
+
+		if (!message || !message.type) {
+			return;
+		}
+
+		if (
+			message.senderId ===
+			myPeerId
+		) {
+			return;
+		}
+
+		if (
+			message.type ===
+			"roundResult"
+		) {
+
+			handleRoundResult(
+				message
+			);
+
+			return;
+		}
+
+		if (
+			message.type ===
+			"gameStart"
+		) {
+
+			if (!isHost) {
+				startRound(
+					message.startAt,
+					message.roundId
+				);
+			}
+
+			return;
+		}
+
+		if (
+			message.type ===
+			"showcase"
+		) {
+
+			startShowcase(
+				message.items,
+				message.startAt,
+				message.roundId
+			);
+
+			return;
+		}
+
+		if (
+			message.type ===
+			"backToLobby"
+		) {
+
+			gameStarted = false;
+
+			stopEditorTimer();
+			stopShowcaseTimer();
+
+			showScreen(
+				lobbyScreen
+			);
+
+			lobbyStatus.innerText =
+				"Waiting for the next game...";
+		}
 	}
 
 
@@ -917,319 +1096,95 @@
 		joinLobbyButton.disabled = true;
 
 		setMainMenuStatus(
-			"Creating lobby..."
+			"Connecting to Supabase..."
 		);
+
+		if (!myPeerId) {
+
+			const success =
+				await ensureSupabaseUser();
+
+			if (!success) {
+
+				hostLobbyButton.disabled = false;
+				joinLobbyButton.disabled = false;
+
+				return;
+			}
+		}
 
 		isHost = true;
 
-		tryHostRoom();
+		let roomCreated = false;
 
-	}
+		for (let attempt = 0; attempt < 5; attempt++) {
 
+			roomCodeValue =
+				generateRoomCode();
 
-	function tryHostRoom() {
-
-		roomCodeValue =
-			generateRoomCode();
-
-		const peerId =
-			ROOM_PREFIX +
-			roomCodeValue.toLowerCase();
-
-		peer =
-			new Peer(peerId);
-
-
-		peer.on(
-			"open",
-			function(id) {
-
-				myPeerId = id;
-				hostPeerId = id;
-
-				participants = [
-					{
-						id: id,
-						name: myName,
-						isHost: true
-					}
-				];
-
-				roomCode.innerText =
-					roomCodeValue;
-
-				updatePlayerList();
-
-				lobbyStatus.innerText =
-					"Waiting for players...";
-
-				hostStartButton.disabled =
-					false;
-
-				showScreen(
-					lobbyScreen
-				);
-			}
-		);
-
-
-		peer.on(
-			"connection",
-			function(connection) {
-
-				if (!isHost) {
-					return;
-				}
-
-				handleIncomingConnection(
-					connection
-				);
-			}
-		);
-
-
-		peer.on(
-			"error",
-			function(error) {
-
-				console.error(
-					"Peer error:",
-					error
-				);
-
-				if (
-					error.type ===
-					"unavailable-id"
-				) {
-
-					if (peer) {
-						peer.destroy();
-					}
-
-					peer = null;
-
-					setTimeout(
-						tryHostRoom,
-						100
+			const result =
+				await supabaseClient
+					.from("rooms")
+					.insert(
+						{
+							room_code:
+								roomCodeValue,
+							host_id:
+								myPeerId,
+							status:
+								"lobby"
+						}
 					);
 
-					return;
-				}
-
-				setMainMenuStatus(
-					"Could not create the lobby."
-				);
-
-				hostLobbyButton.disabled =
-					false;
-
-				joinLobbyButton.disabled =
-					false;
+			if (!result.error) {
+				roomCreated = true;
+				break;
 			}
-		);
-	}
 
-
-	// ============================================================
-	// HANDLE INCOMING HOST CONNECTION
-	// ============================================================
-
-	function handleIncomingConnection(
-		connection
-	) {
-
-		connection.on(
-			"open",
-			function() {
-
-				connections.set(
-					connection.peer,
-					connection
-				);
-
-				connection.on(
-					"data",
-					function(message) {
-
-						handleHostMessage(
-							connection,
-							message
-						);
-					}
-				);
-
-				connection.on(
-					"close",
-					function() {
-
-						removeParticipant(
-							connection.peer
-						);
-					}
-				);
-
-				connection.on(
-					"error",
-					function(error) {
-
-						console.error(
-							error
-						);
-					}
-				);
-
-				sendMessage(
-					connection,
-					{
-						type: "roomInfo",
-						hostId: hostPeerId,
-						players: participants,
-						gameStarted:
-							gameStarted
-					}
-				);
-			}
-		);
-	}
-
-
-	// ============================================================
-	// HOST MESSAGE HANDLER
-	// ============================================================
-
-	function handleHostMessage(
-		connection,
-		message
-	) {
-
-		if (!message || !message.type) {
-			return;
+			console.warn(
+				"Room creation failed:",
+				result.error
+			);
 		}
 
+		if (!roomCreated) {
 
-		if (
-			message.type ===
-			"hello"
-		) {
-
-			if (gameStarted) {
-
-				sendMessage(
-					connection,
-					{
-						type: "reject",
-						message:
-							"The game has already started."
-					}
-				);
-
-				connection.close();
-
-				return;
-			}
-
-
-			if (
-				participants.length >=
-				MAX_PLAYERS
-			) {
-
-				sendMessage(
-					connection,
-					{
-						type: "reject",
-						message:
-							"The lobby is full."
-					}
-				);
-
-				connection.close();
-
-				return;
-			}
-
-
-			const existing =
-				participants.find(
-					function(player) {
-						return player.id ===
-							connection.peer;
-					}
-				);
-
-
-			if (!existing) {
-
-				participants.push(
-					{
-						id:
-							connection.peer,
-
-						name:
-							String(
-								message.name ||
-								"Player"
-							)
-								.slice(
-									0,
-									20
-								),
-
-						isHost: false
-					}
-				);
-			}
-
-
-			broadcastRoomState();
-
-			return;
-		}
-
-
-		if (
-			message.type ===
-			"roundResult"
-		) {
-
-			if (!gameStarted) {
-				return;
-			}
-
-			roundResults[
-				connection.peer
-			] = {
-				name:
-					getParticipantName(
-						connection.peer
-					),
-
-				image:
-					message.image
-			};
-
-			checkRoundResults();
-
-			return;
-		}
-
-
-		if (
-			message.type ===
-			"vote"
-		) {
-
-			console.log(
-				"Vote:",
-				getParticipantName(
-					connection.peer
-				),
-				message.index,
-				message.vote
+			setMainMenuStatus(
+				"Could not create the lobby."
 			);
 
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+
 			return;
 		}
+
+		const connected =
+			await createRealtimeChannel();
+
+		if (!connected) {
+
+			await deleteRoom();
+
+			setMainMenuStatus(
+				"Could not connect to the lobby."
+			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+
+			return;
+		}
+
+		roomCode.innerText =
+			roomCodeValue;
+
+		lobbyStatus.innerText =
+			"Waiting for players...";
+
+		showScreen(
+			lobbyScreen
+		);
 	}
 
 
@@ -1237,7 +1192,7 @@
 	// JOIN LOBBY
 	// ============================================================
 
-	function joinLobby() {
+	async function joinLobby() {
 
 		if (!validateName()) {
 			return;
@@ -1259,426 +1214,97 @@
 			return;
 		}
 
-		if (peer) {
-			peer.destroy();
+		if (!myPeerId) {
+
+			const success =
+				await ensureSupabaseUser();
+
+			if (!success) {
+				return;
+			}
 		}
-
-		isHost = false;
-
-		hostPeerId =
-			ROOM_PREFIX +
-			code.toLowerCase();
-
-		roomCodeValue =
-			code;
-
-		setMainMenuStatus(
-			"Joining lobby..."
-		);
 
 		hostLobbyButton.disabled = true;
 		joinLobbyButton.disabled = true;
 
-		peer =
-			new Peer();
-
-
-		peer.on(
-			"open",
-			function(id) {
-
-				myPeerId = id;
-
-				hostConnection =
-					peer.connect(
-						hostPeerId,
-						{
-							reliable: true
-						}
-					);
-
-				setupHostConnection();
-			}
+		setMainMenuStatus(
+			"Checking room..."
 		);
 
-
-		peer.on(
-			"error",
-			function(error) {
-
-				console.error(
-					"Join error:",
-					error
-				);
-
-				setMainMenuStatus(
-					"Could not join that lobby."
-				);
-
-				hostLobbyButton.disabled =
-					false;
-
-				joinLobbyButton.disabled =
-					false;
-			}
-		);
-	}
-
-
-	// ============================================================
-	// SETUP GUEST CONNECTION
-	// ============================================================
-
-	function setupHostConnection() {
-
-		hostConnection.on(
-			"open",
-			function() {
-
-				sendMessage(
-					hostConnection,
-					{
-						type: "hello",
-						name: myName
-					}
-				);
-
-				setMainMenuStatus(
-					"Connected."
-				);
-			}
-		);
-
-
-		hostConnection.on(
-			"data",
-			function(message) {
-
-				handleGuestMessage(
-					message
-				);
-			}
-		);
-
-
-		hostConnection.on(
-			"close",
-			function() {
-
-				handleHostDisconnected();
-			}
-		);
-
-
-		hostConnection.on(
-			"error",
-			function(error) {
-
-				console.error(
-					error
-				);
-			}
-		);
-	}
-
-
-	// ============================================================
-	// GUEST MESSAGE HANDLER
-	// ============================================================
-
-	function handleGuestMessage(
-		message
-	) {
-
-		if (!message || !message.type) {
-			return;
-		}
-
+		const result =
+			await supabaseClient
+				.from("rooms")
+				.select(
+					"room_code,host_id,status"
+				)
+				.eq(
+					"room_code",
+					code
+				)
+				.maybeSingle();
 
 		if (
-			message.type ===
-			"roomInfo"
+			result.error ||
+			!result.data
 		) {
 
-			participants =
-				message.players || [];
-
-			updatePlayerList();
-
-			roomCode.innerText =
-				roomCodeValue;
-
-			hostStartButton.disabled =
-				true;
-
-			lobbyStatus.innerText =
-				"Waiting for host...";
-
-			showScreen(
-				lobbyScreen
+			setMainMenuStatus(
+				"That lobby does not exist."
 			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
 
 			return;
 		}
 
-
 		if (
-			message.type ===
-			"roomState"
+			result.data.status !==
+			"lobby"
 		) {
 
-			participants =
-				message.players || [];
+			setMainMenuStatus(
+				"That game has already started."
+			);
 
-			gameStarted =
-				Boolean(
-					message.gameStarted
-				);
-
-			updatePlayerList();
-
-			if (!gameStarted) {
-
-				lobbyStatus.innerText =
-					"Waiting for host...";
-
-				showScreen(
-					lobbyScreen
-				);
-			}
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
 
 			return;
 		}
 
+		isHost = false;
 
-		if (
-			message.type ===
-			"gameStart"
-		) {
+		hostUserId =
+			result.data.host_id;
 
-			startRound(
-				message.startAt
+		roomCodeValue =
+			code;
+
+		const connected =
+			await createRealtimeChannel();
+
+		if (!connected) {
+
+			setMainMenuStatus(
+				"Could not connect to the lobby."
 			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
 
 			return;
 		}
 
+		roomCode.innerText =
+			roomCodeValue;
 
-		if (
-			message.type ===
-			"showcase"
-		) {
+		lobbyStatus.innerText =
+			"Waiting for host...";
 
-			startShowcase(
-				message.items,
-				message.startAt
-			);
-
-			return;
-		}
-
-
-		if (
-			message.type ===
-			"backToLobby"
-		) {
-
-			gameStarted = false;
-
-			stopShowcaseTimer();
-
-			showScreen(
-				lobbyScreen
-			);
-
-			lobbyStatus.innerText =
-				"Waiting for the next game...";
-
-			return;
-		}
-
-
-		if (
-			message.type ===
-			"reject"
-		) {
-
-			alert(
-				message.message ||
-				"Could not join the lobby."
-			);
-
-			disconnectEverything();
-
-			hostLobbyButton.disabled =
-				false;
-
-			joinLobbyButton.disabled =
-				false;
-
-			showScreen(
-				mainMenu
-			);
-
-			return;
-		}
-	}
-
-
-	// ============================================================
-	// BROADCAST ROOM STATE
-	// ============================================================
-
-	function broadcastRoomState() {
-
-		const message = {
-
-			type: "roomState",
-
-			players:
-				participants,
-
-			gameStarted:
-				gameStarted
-		};
-
-		for (
-			const connection of
-			connections.values()
-		) {
-
-			if (
-				connection.open
-			) {
-
-				sendMessage(
-					connection,
-					message
-				);
-			}
-		}
-
-		updatePlayerList();
-	}
-
-
-	// ============================================================
-	// SEND TO EVERYONE
-	// ============================================================
-
-	function broadcast(
-		message
-	) {
-
-		for (
-			const connection of
-			connections.values()
-		) {
-
-			if (
-				connection.open
-			) {
-
-				sendMessage(
-					connection,
-					message
-				);
-			}
-		}
-	}
-
-
-	// ============================================================
-	// SAFE SEND
-	// ============================================================
-
-	function sendMessage(
-		connection,
-		message
-	) {
-
-		if (
-			connection &&
-			connection.open
-		) {
-
-			try {
-
-				connection.send(
-					message
-				);
-
-			} catch (error) {
-
-				console.error(
-					"Send error:",
-					error
-				);
-			}
-		}
-	}
-
-
-	// ============================================================
-	// REMOVE PARTICIPANT
-	// ============================================================
-
-	function removeParticipant(
-		peerId
-	) {
-
-		connections.delete(
-			peerId
+		showScreen(
+			lobbyScreen
 		);
-
-		participants =
-			participants.filter(
-				function(player) {
-					return player.id !==
-						peerId;
-				}
-			);
-
-		delete roundResults[
-			peerId
-		];
-
-		updatePlayerList();
-
-		if (
-			isHost
-		) {
-
-			broadcastRoomState();
-
-			if (gameStarted) {
-				checkRoundResults();
-			}
-		}
-	}
-
-
-	// ============================================================
-	// PARTICIPANT NAME
-	// ============================================================
-
-	function getParticipantName(
-		peerId
-	) {
-
-		const player =
-			participants.find(
-				function(item) {
-					return item.id ===
-						peerId;
-				}
-			);
-
-		if (player) {
-			return player.name;
-		}
-
-		return "Player";
 	}
 
 
@@ -1688,8 +1314,7 @@
 
 	function updatePlayerList() {
 
-		playerList.innerHTML =
-			"";
+		playerList.innerHTML = "";
 
 		for (
 			const player of
@@ -1768,13 +1393,9 @@
 	// START GAME
 	// ============================================================
 
-	function hostStartGame() {
+	async function hostStartGame() {
 
-		if (!isHost) {
-			return;
-		}
-
-		if (gameStarted) {
+		if (!isHost || gameStarted) {
 			return;
 		}
 
@@ -1788,31 +1409,86 @@
 
 		gameStarted = true;
 
+		currentRoundId =
+			crypto.randomUUID();
+
 		roundResults = {};
+
+		expectedPlayerIds =
+			participants.map(
+				function(player) {
+					return player.id;
+				}
+			);
+
+		for (
+			const id of
+			expectedPlayerIds
+		) {
+			roundResults[id] = null;
+		}
 
 		const startAt =
 			Date.now() + 1500;
 
-		participants.forEach(
-			function(player) {
-				roundResults[
-					player.id
-				] = null;
-			}
-		);
+		await supabaseClient
+			.from("rooms")
+			.update(
+				{
+					status: "playing"
+				}
+			)
+			.eq(
+				"room_code",
+				roomCodeValue
+			)
+			.eq(
+				"host_id",
+				myPeerId
+			);
 
-		broadcast(
+		await broadcastMessage(
 			{
-				type: "gameStart",
-				startAt: startAt
+				type:
+					"gameStart",
+
+				senderId:
+					myPeerId,
+
+					startAt:
+						startAt,
+
+					roundId:
+						currentRoundId
 			}
 		);
-
-		broadcastRoomState();
 
 		startRound(
-			startAt
+			startAt,
+			currentRoundId
 		);
+
+		if (hostRoundEndTimer) {
+			clearTimeout(
+				hostRoundEndTimer
+			);
+		}
+
+		hostRoundEndTimer =
+			setTimeout(
+				function() {
+					checkRoundResults(true);
+				},
+				Math.max(
+					0,
+					startAt +
+					ROUND_LENGTH +
+					3000 -
+					Date.now()
+				)
+			);
+
+		updatePlayerList();
 	}
 
 
@@ -1821,11 +1497,15 @@
 	// ============================================================
 
 	function startRound(
-		startAt
+		startAt,
+		roundId
 	) {
 
 		roundStartTime =
 			startAt;
+
+		currentRoundId =
+			roundId;
 
 		roundSubmitted =
 			false;
@@ -1834,12 +1514,14 @@
 			getRandomMeme();
 
 		createControls();
-
 		loadMemeImage();
 
 		showScreen(
 			editorScreen
 		);
+
+		editorMessage.innerText =
+			"Make your meme before the timer runs out.";
 
 		startEditorTimer();
 	}
@@ -1905,7 +1587,7 @@
 			stopEditorTimer();
 
 			editorMessage.innerText =
-				"Time's up! Saving your meme...";
+			"Time's up! Saving your meme...";
 
 			submitRoundMeme();
 		}
@@ -1913,10 +1595,108 @@
 
 
 	// ============================================================
+	// DATA URL -> BLOB
+	// ============================================================
+
+	function dataURLToBlob(dataURL) {
+
+		const parts =
+			dataURL.split(",");
+
+		const mime =
+			parts[0]
+				.match(
+					/:(.*?);/
+				)?.[1] ||
+				"image/png";
+
+		const binary =
+			atob(parts[1]);
+
+		const bytes =
+			new Uint8Array(
+				binary.length
+			);
+
+		for (let i = 0; i < binary.length; i++) {
+			bytes[i] =
+				binary.charCodeAt(i);
+		}
+
+		return new Blob(
+			[bytes],
+			{
+				type: mime
+			}
+		);
+	}
+
+
+	// ============================================================
+	// UPLOAD MEME
+	// ============================================================
+
+	async function uploadMemeToSupabase(
+		dataURL
+	) {
+
+		const blob =
+			dataURLToBlob(dataURL);
+
+		const filePath =
+			"rooms/" +
+			roomCodeValue +
+			"/" +
+			myPeerId +
+			"/" +
+			Date.now() +
+			".png";
+
+		const result =
+			await supabaseClient
+				.storage
+				.from("memes")
+				.upload(
+					filePath,
+					blob,
+					{
+						contentType:
+							"image/png",
+						upsert: false
+					}
+				);
+
+		if (result.error) {
+
+			console.error(
+				"Meme upload failed:",
+				result.error
+			);
+
+			return null;
+		}
+
+		const publicURL =
+			supabaseClient
+				.storage
+				.from("memes")
+				.getPublicUrl(
+					filePath
+				);
+
+		return {
+			path: filePath,
+			url:
+				publicURL.data.publicUrl
+		};
+	}
+
+
+	// ============================================================
 	// SUBMIT LOCAL MEME
 	// ============================================================
 
-	function submitRoundMeme() {
+	async function submitRoundMeme() {
 
 		const image =
 			createMemeDataURL();
@@ -1926,33 +1706,98 @@
 			editorMessage.innerText =
 				"Could not save your meme.";
 
+			if (isHost) {
+
+				roundResults[
+					myPeerId
+				] = {
+					name: myName,
+					image: null
+				};
+
+				checkRoundResults();
+			}
+
+			return;
+		}
+
+		const upload =
+			await uploadMemeToSupabase(
+				image
+			);
+
+		if (!upload) {
+
+			editorMessage.innerText =
+				"Could not upload your meme.";
+
+			if (isHost) {
+
+				roundResults[
+					myPeerId
+				] = {
+					name: myName,
+					image: null
+				};
+
+				checkRoundResults();
+			}
+
 			return;
 		}
 
 		editorMessage.innerText =
 			"Your meme has been saved.";
 
+		await supabaseClient
+			.from("submissions")
+			.insert(
+				{
+					room_code:
+						roomCodeValue,
+
+					round_id:
+						currentRoundId,
+
+					player_id:
+						myPeerId,
+
+					player_name:
+						myName,
+
+					image_path:
+						upload.path,
+
+					image_url:
+						upload.url
+				}
+			);
+
+		const result = {
+			name: myName,
+			image: upload.url
+		};
+
 		if (isHost) {
 
 			roundResults[
 				myPeerId
-			] = {
-				name: myName,
-				image: image
-			};
+			] = result;
 
 			checkRoundResults();
 
 		} else {
 
-			sendMessage(
-				hostConnection,
+			await broadcastMessage(
 				{
 					type:
 						"roundResult",
 
+					senderId:
+						myPeerId,
+
 					image:
-						image
+						upload.url
 				}
 			);
 		}
@@ -1960,47 +1805,88 @@
 
 
 	// ============================================================
-	// CHECK WHETHER EVERYONE HAS SUBMITTED
+	// HANDLE ROUND RESULT
 	// ============================================================
 
-	function checkRoundResults() {
+	function handleRoundResult(
+		message
+	) {
 
-		if (!isHost) {
+		if (!isHost || !gameStarted) {
+			return;
+		}
+
+		if (
+			!expectedPlayerIds.includes(
+				message.senderId
+			)
+		) {
+			return;
+		}
+
+		roundResults[
+			message.senderId
+		] = {
+			name:
+				getParticipantName(
+					message.senderId
+				),
+			image:
+				message.image
+		};
+
+		checkRoundResults();
+	}
+
+
+	// ============================================================
+	// CHECK ROUND RESULTS
+	// ============================================================
+
+	function checkRoundResults(
+		force = false
+	) {
+
+		if (!isHost || !gameStarted) {
 			return;
 		}
 
 		const activeIds =
-			participants.map(
-				function(player) {
-					return player.id;
-				}
-			);
+		expectedPlayerIds.filter(
+			function(id) {
+				return participants.some(
+					function(player) {
+						return player.id === id;
+					}
+				) || id === myPeerId;
+			}
+		);
 
-		for (
-			const id of
-			activeIds
-		) {
+		if (!force) {
 
-			if (
-				!roundResults[id] ||
-				!roundResults[id].image
+			for (
+				const id of
+				activeIds
 			) {
 
-				return;
+				if (
+					!roundResults[id] ||
+					!roundResults[id].image
+				) {
+					return;
+				}
 			}
 		}
 
 		const items = [];
 
 		for (
-			const player of
-			participants
+			const id of
+			activeIds
 		) {
 
 			const result =
-				roundResults[
-					player.id
-				];
+				roundResults[id];
 
 			if (
 				result &&
@@ -2009,14 +1895,9 @@
 
 				items.push(
 					{
-						peerId:
-							player.id,
-
-						name:
-							player.name,
-
-						image:
-							result.image
+						peerId: id,
+						name: result.name,
+						image: result.image
 					}
 				);
 			}
@@ -2026,25 +1907,39 @@
 			return;
 		}
 
+		if (hostRoundEndTimer) {
+			clearTimeout(
+				hostRoundEndTimer
+			);
+			hostRoundEndTimer = null;
+		}
+
 		const startAt =
 			Date.now() + 1000;
 
-		broadcast(
+		broadcastMessage(
 			{
 				type:
 					"showcase",
 
-				items:
-					items,
+				senderId:
+					myPeerId,
 
-				startAt:
-					startAt
+					items:
+						items,
+
+					startAt:
+						startAt,
+
+					roundId:
+						currentRoundId
 			}
 		);
 
 		startShowcase(
 			items,
-			startAt
+			startAt,
+			currentRoundId
 		);
 	}
 
@@ -2055,7 +1950,8 @@
 
 	function startShowcase(
 		items,
-		startAt
+		startAt,
+		roundId
 	) {
 
 		if (
@@ -2065,11 +1961,16 @@
 			return;
 		}
 
+		stopEditorTimer();
+
 		showcaseItems =
 			items;
 
 		showcaseStartedAt =
 			startAt;
+
+		currentRoundId =
+			roundId;
 
 		currentShowcaseIndex =
 			-1;
@@ -2089,7 +1990,6 @@
 	function startShowcaseTimer() {
 
 		stopShowcaseTimer();
-
 		updateShowcase();
 
 		showcaseTimer =
@@ -2134,7 +2034,6 @@
 		) {
 
 			stopShowcaseTimer();
-
 			finishShowcase();
 
 			return;
@@ -2165,65 +2064,68 @@
 	// VOTE
 	// ============================================================
 
-	function submitVote(
+	async function submitVote(
 		vote
 	) {
 
 		if (
 			currentShowcaseIndex < 0 ||
 			currentShowcaseIndex >=
-			showcaseItems.length
+			showcaseItems.length ||
+			!currentRoundId
 		) {
 			return;
 		}
 
-		const buttons =
-			document.querySelectorAll(
-				".voteButton"
-			);
-
-		buttons.forEach(
+		voteButtons.forEach(
 			function(button) {
 
 				button.classList.toggle(
 					"selected",
-					button.dataset.vote ===
-					vote
+					button.dataset.vote === vote
 				);
 			}
 		);
 
-
-		const creatorPeerId =
+		const item =
 			showcaseItems[
 				currentShowcaseIndex
-			].peerId;
+			];
 
+		try {
 
-		if (isHost) {
+			const result =
+				await supabaseClient
+					.from("votes")
+					.upsert(
+						{
+							round_id:
+								currentRoundId,
 
-			console.log(
-				"Vote:",
-				myName,
-				"for",
-				creatorPeerId,
-				vote
-			);
+							voter_id:
+								myPeerId,
 
-		} else {
+							meme_id:
+								item.image,
 
-			sendMessage(
-				hostConnection,
-				{
-					type:
-						"vote",
+							vote:
+								vote
+						},
+						{
+							onConflict:
+								"round_id,voter_id,meme_id"
+						}
+					);
 
-					index:
-						currentShowcaseIndex,
+			if (result.error) {
+				throw result.error;
+			}
 
-					vote:
-						vote
-				}
+		} catch (error) {
+
+			console.error(
+				"Vote error:",
+				error
 			);
 		}
 	}
@@ -2250,46 +2152,212 @@
 	// FINISH SHOWCASE
 	// ============================================================
 
-	function finishShowcase() {
+	async function finishShowcase() {
 
 		showcaseItems = [];
 		currentShowcaseIndex = -1;
+		gameStarted = false;
 
 		if (isHost) {
 
-			gameStarted = false;
-			roundResults = {};
+			await supabaseClient
+				.from("rooms")
+				.update(
+					{
+						status: "lobby"
+					}
+				)
+				.eq(
+					"room_code",
+					roomCodeValue
+				)
+				.eq(
+					"host_id",
+					myPeerId
+					);
 
-			broadcast(
+			await broadcastMessage(
 				{
 					type:
-						"backToLobby"
+						"backToLobby",
+
+					senderId:
+						myPeerId
+				}
+			);
+		}
+
+		showScreen(
+			lobbyScreen
+		);
+
+		lobbyStatus.innerText =
+			isHost
+				? "Round finished! Ready for another game."
+				: "Round finished! Waiting for the host...";
+
+		updatePlayerList();
+	}
+
+
+	// ============================================================
+	// PARTICIPANT NAME
+	// ============================================================
+
+	function getParticipantName(
+		userId
+	) {
+
+		const player =
+			participants.find(
+				function(item) {
+					return item.id === userId;
 				}
 			);
 
-			broadcastRoomState();
+		if (player) {
+			return player.name;
+		}
 
-			showScreen(
-				lobbyScreen
+		return "Player";
+	}
+
+
+	// ============================================================
+	// DELETE ROOM
+	// ============================================================
+
+	async function deleteRoom() {
+
+		if (!roomCodeValue || !myPeerId) {
+			return;
+		}
+
+		await supabaseClient
+			.from("rooms")
+			.delete()
+			.eq(
+				"room_code",
+				roomCodeValue
+			)
+			.eq(
+				"host_id",
+				myPeerId
+			);
+	}
+
+
+	// ============================================================
+	// LEAVE LOBBY
+	// ============================================================
+
+	async function leaveLobby() {
+
+		stopEditorTimer();
+		stopShowcaseTimer();
+
+		if (hostRoundEndTimer) {
+
+			clearTimeout(
+				hostRoundEndTimer
 			);
 
-			lobbyStatus.innerText =
-				"Round finished! Ready for another game.";
+			hostRoundEndTimer = null;
+		}
 
-		} else {
+		if (isHost) {
 
-			gameStarted = false;
-
-			showScreen(
-				lobbyScreen
+			await broadcastMessage(
+				{
+					type:
+						"backToLobby",
+					senderId:
+						myPeerId
+				}
 			);
 
-			lobbyStatus.innerText =
-				"Round finished! Waiting for the host...";
+			await deleteRoom();
+		}
+
+		await disconnectEverything();
+
+		participants = [];
+		gameStarted = false;
+		isHost = false;
+		roomCodeValue = "";
+		hostUserId = null;
+
+		hostLobbyButton.disabled = false;
+		joinLobbyButton.disabled = false;
+
+		setMainMenuStatus("");
+
+		showScreen(
+			mainMenu
+		);
+	}
+
+
+	// ============================================================
+	// DISCONNECT EVERYTHING
+	// ============================================================
+
+	async function disconnectEverything() {
+
+		realtimeChannelReady = false;
+
+		if (realtimeChannel) {
+
+			try {
+				await realtimeChannel.untrack();
+			} catch (error) {
+			}
+
+			try {
+				await supabaseClient.removeChannel(
+					realtimeChannel
+				);
+			} catch (error) {
+				console.error(error);
+			}
+
+			realtimeChannel = null;
 		}
 	}
 
 
+	// ============================================================
+	// HOST DISCONNECTED
+	// ============================================================
+
+	function handleHostDisconnected() {
+
+		if (isHost) {
+			return;
+		}
+
+		stopEditorTimer();
+		stopShowcaseTimer();
+
+		gameStarted = false;
+
+		alert(
+			"The host left the lobby."
+		);
+
+		disconnectEverything();
+
+		hostLobbyButton.disabled = false;
+		joinLobbyButton.disabled = false;
+
+		showScreen(
+			mainMenu
+		);
+	}
+
+
+	// ============================================================
+	// CHANGE LOCAL MEME
 	// ============================================================
 	// CHANGE LOCAL MEME
 	// ============================================================
@@ -3865,123 +3933,11 @@
 
 
 	// ============================================================
-	// LEAVE LOBBY
+	// ============================================================
+	// END OF NETWORK / EDITOR SUPPORT
 	// ============================================================
 
-	function leaveLobby() {
 
-		disconnectEverything();
-
-		isHost = false;
-		gameStarted = false;
-
-		participants = [];
-
-		roundResults = {};
-
-		hostConnection = null;
-		hostPeerId = null;
-		roomCodeValue = "";
-
-		hostLobbyButton.disabled =
-			false;
-
-		joinLobbyButton.disabled =
-			false;
-
-		setMainMenuStatus(
-			""
-		);
-
-		showScreen(
-			mainMenu
-		);
-	}
-
-
-	// ============================================================
-	// HOST DISCONNECTED
-	// ============================================================
-
-	function handleHostDisconnected() {
-
-		if (isHost) {
-			return;
-		}
-
-		stopEditorTimer();
-		stopShowcaseTimer();
-
-		gameStarted =
-			false;
-
-		alert(
-			"The host left the lobby."
-		);
-
-		disconnectEverything();
-
-		hostLobbyButton.disabled =
-			false;
-
-		joinLobbyButton.disabled =
-			false;
-
-		showScreen(
-			mainMenu
-		);
-	}
-
-
-	// ============================================================
-	// DISCONNECT EVERYTHING
-	// ============================================================
-
-	function disconnectEverything() {
-
-		stopEditorTimer();
-		stopShowcaseTimer();
-
-		if (hostConnection) {
-
-			try {
-				hostConnection.close();
-			} catch (error) {
-			}
-
-			hostConnection =
-				null;
-		}
-
-
-		for (
-			const connection of
-			connections.values()
-		) {
-
-			try {
-				connection.close();
-			} catch (error) {
-			}
-		}
-
-
-		connections.clear();
-
-
-		if (peer) {
-
-			try {
-				peer.destroy();
-			} catch (error) {
-			}
-
-			peer = null;
-		}
-	}
-
-
-	// ============================================================
 	// BUTTONS
 	// ============================================================
 
