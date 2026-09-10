@@ -2050,15 +2050,15 @@
 	
 		} catch (error) {
 			console.error("Vote save failed:", error);
-	
+		
 			showcaseStatus.innerText =
-				"Failed to save vote.";
-	
-			// Undo the local change if saving failed.
+				"Vote failed: " +
+				(error.message || error.code || "Unknown error");
+		
 			if (votingVotes[item.id]) {
 				delete votingVotes[item.id][myPeerId];
 			}
-	
+		
 			localVoteMade = false;
 			clearVoteSelection();
 		}
