@@ -1539,6 +1539,7 @@
 	// ============================================================
 
 	function startEditingRound(roundNumber, startAt, roundId, playerIds) {
+		gameStarted = true;
 		currentPhase = "editing";
 		currentRoundNumber = roundNumber;
 		currentRoundId = roundId;
@@ -1598,6 +1599,72 @@
 		editorCounter.innerText = submittedIds.size + "/" + total;
 		editorCounter.title = "Memes made";
 	}
+
+	// ============================================================
+	// DATA URL -> BLOB
+	// ============================================================
+
+	function dataURLToBlob(dataURL) {
+		const parts = dataURL.split(",");
+		const mime = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+		const binary = atob(parts[1]);
+		const bytes = new Uint8Array(binary.length);
+
+		for (let i = 0; i < binary.length; i++) {
+			bytes[i] = binary.charCodeAt(i);
+		}
+
+		return new Blob([bytes], { type: mime });
+	}
+
+
+	// ============================================================
+	// UPLOAD MEME TO SUPABASE STORAGE
+	// ============================================================
+
+	async function uploadMemeToSupabase(dataURL) {
+		if (!dataURL) {
+			throw new Error("No meme image was generated.");
+		}
+
+		const blob = dataURLToBlob(dataURL);
+		const filePath =
+			"rooms/" +
+			roomCodeValue +
+			"/" +
+			myPeerId +
+			"/" +
+			Date.now() +
+			".png";
+
+		const result = await supabaseClient
+			.storage
+			.from("memes")
+			.upload(
+				filePath,
+				blob,
+				{
+					contentType: "image/png",
+					upsert: false
+				}
+			);
+
+		if (result.error) {
+			console.error("Meme upload failed:", result.error);
+			throw result.error;
+		}
+
+		const publicURL = supabaseClient
+			.storage
+			.from("memes")
+			.getPublicUrl(filePath);
+
+		return {
+			path: filePath,
+			url: publicURL.data.publicUrl
+		};
+	}
+
 
 	// ============================================================
 	// SUBMIT MEME
