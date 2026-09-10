@@ -309,6 +309,27 @@
 		padding: 10px;
 	}
 
+	.submitMemeButton {
+		display: block;
+		margin: 0 auto 10px auto;
+		padding: 14px 28px;
+		border: none;
+		border-radius: 8px;
+		background: #4caf50;
+		color: white;
+		font-size: 20px;
+		font-weight: bold;
+	}
+
+	.submitMemeButton:hover:not(:disabled) {
+		background: #45a049;
+	}
+
+	.submitMemeButton:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
 	/* ============================================================
 	   SHOWCASE / VOTING
 	   ============================================================ */
@@ -669,6 +690,10 @@
 		Make your meme before the timer runs out.
 	</div>
 
+	<button id="submitMemeButton" class="submitMemeButton" type="button">
+		SUBMIT MEME
+	</button>
+
 	<div id="editor">
 
 		<div id="canvasContainer">
@@ -778,6 +803,7 @@
 	const leaveLobbyButton = document.getElementById("leaveLobbyButton");
 
 	const editorTimer = document.getElementById("editorTimer");
+	const submitMemeButton = document.getElementById("submitMemeButton");
 	const editorCounter = document.createElement("div");
 	editorCounter.id = "editorCounter";
 	document.getElementById("editorTopBar").insertBefore(
@@ -849,6 +875,7 @@
 	let editStartTime = 0;
 	let editTimer = null;
 	let roundSubmitted = false;
+	let submissionInProgress = false;
 	let hostRoundTimeout = null;
 
 	let votingItems = [];
@@ -1517,7 +1544,10 @@
 		currentRoundId = roundId;
 		expectedPlayerIds = playerIds || expectedPlayerIds;
 		roundSubmitted = false;
-	submittedIds = new Set();
+		submissionInProgress = false;
+		submitMemeButton.disabled = false;
+		submitMemeButton.innerText = "SUBMIT MEME";
+		submittedIds = new Set();
 		roundResults = {};
 		votingItems = [];
 		votingVotes = {};
@@ -1556,11 +1586,10 @@
 		editorTimer.innerText = String(seconds);
 		updateEditorCounter();
 
-		if (remaining <= 0 && !roundSubmitted) {
-			roundSubmitted = true;
+		if (remaining <= 0 && !roundSubmitted && !submissionInProgress) {
 			stopEditingTimer();
 			editorMessage.innerText = "Time's up! Saving your meme...";
-			submitRoundMeme();
+			submitRoundMeme(true);
 		}
 	}
 
@@ -1574,8 +1603,8 @@
 	// SUBMIT MEME
 	// ============================================================
 
-	async function submitRoundMeme() {
-		if (!gameStarted || currentPhase !== "editing") {
+	async function submitRoundMeme(autoSubmitted = false) {
+		if (!gameStarted || currentPhase !== "editing" || roundSubmitted || submissionInProgress) {
 			return;
 		}
 
@@ -1583,37 +1612,32 @@
 			return;
 		}
 
-		const image = createMemeDataURL();
-
-		if (!image) {
-			editorMessage.innerText = "Could not save your meme.";
-			if (isHost) {
-				handleRoundSubmission({
-					senderId: myPeerId,
-					image: null,
-					name: myName
-				});
+		if (!currentImage || !currentImage.complete) {
+			editorMessage.innerText = "Wait for the meme image to finish loading.";
+			if (!autoSubmitted) {
+				return;
 			}
-			return;
 		}
 
-		const upload = await uploadMemeToSupabase(image);
+		submissionInProgress = true;
+		roundSubmitted = true;
+		submitMemeButton.disabled = true;
+		submitMemeButton.innerText = "SAVING...";
+		changeMemeButton.disabled = true;
+		editorMessage.innerText = "Saving your meme...";
 
-		if (!upload) {
-			editorMessage.innerText = "Could not upload your meme.";
-			if (isHost) {
-				handleRoundSubmission({
-					senderId: myPeerId,
-					image: null,
-					name: myName
-				});
+		try {
+			const image = createMemeDataURL();
+			if (!image) {
+				throw new Error("Could not create the meme image.");
 			}
-			return;
-		}
 
-		await supabaseClient
-			.from("submissions")
-			.insert({
+			const upload = await uploadMemeToSupabase(image);
+			if (!upload) {
+				throw new Error("Could not upload your meme to Supabase Storage.");
+			}
+
+			const submissionInsert = await supabaseClient.from("submissions").insert({
 				room_code: roomCodeValue,
 				round_id: currentRoundId,
 				player_id: myPeerId,
@@ -1622,24 +1646,43 @@
 				image_url: upload.url
 			});
 
-		editorMessage.innerText = "Your meme has been saved.";
+			if (submissionInsert.error) {
+				console.warn("Submission database row failed, but the meme upload succeeded:", submissionInsert.error);
+			}
 
-		const result = {
-			senderId: myPeerId,
-			name: myName,
-			image: upload.url
-		};
+			editorMessage.innerText = "Your meme has been submitted!";
 
-		if (isHost) {
-			handleRoundSubmission(result);
-		} else {
-			await broadcastMessage({
-				type: "roundResult",
+			const result = {
 				senderId: myPeerId,
 				name: myName,
 				image: upload.url,
 				roundId: currentRoundId
-			});
+			};
+
+			if (isHost) {
+				handleRoundSubmission(result);
+			} else {
+				const sent = await broadcastMessage({
+					type: "roundResult",
+					senderId: myPeerId,
+					name: myName,
+					image: upload.url,
+					roundId: currentRoundId
+				});
+
+				if (!sent) {
+					throw new Error("Could not notify the host that your meme was submitted.");
+				}
+			}
+		} catch (error) {
+			console.error("Meme submission failed:", error);
+			editorMessage.innerText = "Submission failed: " + (error.message || "unknown error");
+			roundSubmitted = false;
+			submitMemeButton.disabled = false;
+			submitMemeButton.innerText = "SUBMIT MEME";
+			changeMemeButton.disabled = false;
+		} finally {
+			submissionInProgress = false;
 		}
 	}
 
@@ -1739,7 +1782,7 @@
 		clearTimeout(hostRoundTimeout);
 		hostRoundTimeout = setTimeout(function() {
 			startVotingFromSubmissions(true);
-		}, Math.max(0, startAt + EDIT_LENGTH + 3000 - Date.now()));
+		}, Math.max(0, startAt + EDIT_LENGTH + 10000 - Date.now()));
 	}
 
 	// ============================================================
@@ -4196,6 +4239,10 @@
 	// ============================================================
 	// BUTTONS
 	// ============================================================
+
+	submitMemeButton.addEventListener("click", function() {
+		submitRoundMeme(false);
+	});
 
 	hostLobbyButton.addEventListener("click", hostLobby);
 	joinLobbyButton.addEventListener("click", joinLobby);
