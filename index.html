@@ -1078,17 +1078,12 @@
 	// ============================================================
 
 	async function hostLobby() {
-
 		if (!validateName()) {
 			return;
 		}
-
+	
 		if (memes.length === 0) {
-
-			setMainMenuStatus(
-				"Memes are still loading..."
-			);
-
+			mainMenuStatus.textContent = "Please wait for the memes to load.";
 			return;
 		}
 
