@@ -4201,3 +4201,8500 @@
 
 </body>
 </html>
+MakeItMeme_Supabase_fixed2.html
+HTML
+okay! last game edits i need:
+the start game button did not work. when i had enough people, clicking it did not begin the game, nor did leave game leave the lobby or for me as host, delete the lobby. 
+now, add a counter at the top that works like (players making memes)/(max players) and if all submit it skips the rest of the timer and goes straight to voting. 
+show a timer also during the voting to show how much time is left. if everyone voted, skip down to 5 seconds if still above it.
+
+the game cant start unless theres an even number of people in a lobby up to 10 max
+
+now, for the actual voting, it needs to be tournament styled. this means each meme displayed now has 5 buttons, red, pink, yellow, orange, and green, in that order. orange adds 10 points, green adds 20, yellow adds 5, pink subtracts 10, and red subtracts 20. this math is undercover and not shown. after its gone through all the memes in one round, it reveals which meme won and had the most points. if its a tie, it picks a random one. then, instead of going back to lobby, it goes to round 2/4 and people make their memes, then vote, then they do it in a 3rd round and then a 4th. after the 4th, when the 5th starts, it takes a random 2 set of memes and puts them center, side by side, with one button underneath them. you pick which one you want and whichever has the most votes stays. the person who created the meme can not vote for their meme, this goes for every round. in the final round (5) they cant vote for ANY meme IF the one they made is competing. eventually one meme tops them all, and then you go back to the lobby.
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MakeItMeme</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+	* {
+		box-sizing: border-box;
+	}
+
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		width: 100%;
+		height: 100%;
+		background: #222;
+		color: white;
+		font-family: Arial, sans-serif;
+	}
+
+	body {
+		overflow-x: hidden;
+	}
+
+	button,
+	input {
+		font-family: Arial, sans-serif;
+	}
+
+	button {
+		cursor: pointer;
+	}
+
+	/* ============================================================
+	   SCREENS
+	   ============================================================ */
+
+	.screen {
+		display: none;
+		width: 100%;
+		min-height: 100vh;
+	}
+
+	.screen.active {
+		display: flex;
+	}
+
+	/* ============================================================
+	   MAIN MENU
+	   ============================================================ */
+
+	#mainMenu {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	#mainMenuContent {
+		width: 420px;
+		max-width: 90vw;
+	}
+
+	#mainMenuTitle {
+		font-size: 64px;
+		font-weight: 900;
+		margin: 0 0 10px 0;
+		letter-spacing: 2px;
+	}
+
+	#mainMenuSubtitle {
+		color: #aaa;
+		font-size: 18px;
+		margin-bottom: 35px;
+	}
+
+	.menuPanel {
+		background: #333;
+		padding: 25px;
+		border-radius: 12px;
+		margin-bottom: 20px;
+	}
+
+	.menuPanel h2 {
+		margin-top: 0;
+	}
+
+	.nameInput,
+	.codeInput {
+		width: 100%;
+		padding: 14px;
+		border: none;
+		border-radius: 6px;
+		font-size: 20px;
+		text-align: center;
+		margin-bottom: 12px;
+		background: #eee;
+		color: #222;
+	}
+
+	.primaryButton {
+		width: 100%;
+		padding: 15px;
+		border: none;
+		border-radius: 6px;
+		background: #4caf50;
+		color: white;
+		font-size: 22px;
+		font-weight: bold;
+	}
+
+	.primaryButton:hover {
+		background: #45a049;
+	}
+
+	.secondaryButton {
+		width: 100%;
+		padding: 13px;
+		border: none;
+		border-radius: 6px;
+		background: #555;
+		color: white;
+		font-size: 18px;
+	}
+
+	.secondaryButton:hover {
+		background: #666;
+	}
+
+	.menuStatus {
+		min-height: 24px;
+		color: #ffcc66;
+		margin-top: 12px;
+	}
+
+	/* ============================================================
+	   LOBBY
+	   ============================================================ */
+
+	#lobbyScreen {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	#lobbyContent {
+		width: 520px;
+		max-width: 92vw;
+	}
+
+	#roomCode {
+		font-size: 48px;
+		font-weight: 900;
+		letter-spacing: 8px;
+		margin: 10px 0;
+	}
+
+	#roomCodeLabel {
+		color: #aaa;
+		font-size: 16px;
+	}
+
+	#hostStartButton {
+		margin-top: 20px;
+	}
+
+	#hostStartButton:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	#playerList {
+		text-align: left;
+		margin-top: 20px;
+	}
+
+	.playerEntry {
+		background: #444;
+		padding: 12px 15px;
+		border-radius: 6px;
+		margin-bottom: 8px;
+		font-size: 18px;
+	}
+
+	.hostTag {
+		color: #ffd34d;
+		font-size: 13px;
+		font-weight: bold;
+		margin-left: 8px;
+	}
+
+	/* ============================================================
+	   EDITOR
+	   ============================================================ */
+
+	#editorScreen {
+		display: none;
+		flex-direction: column;
+	}
+
+	#editorScreen.active {
+		display: flex;
+	}
+
+	#editorTopBar {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 25px;
+		flex-wrap: wrap;
+		padding: 14px 20px;
+		background: #111;
+		border-bottom: 1px solid #444;
+	}
+
+	#editorTimer {
+		font-size: 30px;
+		font-weight: bold;
+	}
+
+	#editorMemeName {
+		color: #bbb;
+		font-size: 18px;
+	}
+
+	#changeMemeButton {
+		padding: 10px 16px;
+		border: none;
+		border-radius: 5px;
+		background: #555;
+		color: white;
+		font-size: 16px;
+	}
+
+	#editor {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: flex-start;
+		gap: 30px;
+		margin: 20px;
+		flex: 1;
+	}
+
+	#canvasContainer {
+		position: relative;
+		width: fit-content;
+		max-width: 70vw;
+	}
+
+	#memeCanvas {
+		display: block;
+		max-width: 70vw;
+		max-height: 75vh;
+		background: black;
+		cursor: crosshair;
+		touch-action: none;
+	}
+
+	#controls {
+		width: 300px;
+		max-width: 90vw;
+		text-align: left;
+	}
+
+	.textBoxControls {
+		background: #333;
+		padding: 15px;
+		margin-bottom: 15px;
+		border-radius: 8px;
+	}
+
+	.textBoxControls h3 {
+		margin-top: 0;
+	}
+
+	.textBoxControls label {
+		display: block;
+		margin-top: 8px;
+	}
+
+	.textBoxControls input[type="text"] {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 8px;
+		font-size: 16px;
+	}
+
+	.numberInput {
+		width: 80px;
+		padding: 6px;
+		font-size: 16px;
+	}
+
+	.resetButton {
+		margin-top: 10px;
+		padding: 6px 12px;
+		cursor: pointer;
+	}
+
+	#editorMessage {
+		text-align: center;
+		color: #aaa;
+		padding: 10px;
+	}
+
+	/* ============================================================
+	   SHOWCASE
+	   ============================================================ */
+
+	#showcaseScreen {
+		display: none;
+		align-items: center;
+		justify-content: center;
+		background: #000;
+		min-height: 100vh;
+	}
+
+	#showcaseScreen.active {
+		display: flex;
+	}
+
+	#showcaseContent {
+		width: 100%;
+		height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 25px;
+	}
+
+	#showcaseImage {
+		display: block;
+		max-width: 92vw;
+		max-height: 78vh;
+		object-fit: contain;
+	}
+
+	#voteButtons {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 18px;
+	}
+
+	.voteButton {
+		width: 80px;
+		height: 60px;
+		border: none;
+		border-radius: 12px;
+		background: #222;
+		color: white;
+		font-size: 30px;
+		transition: transform 0.1s, background 0.1s;
+	}
+
+	.voteButton:hover {
+		background: #444;
+		transform: scale(1.05);
+	}
+
+	.voteButton.selected {
+		background: #666;
+		transform: scale(1.08);
+	}
+
+	#showcaseStatus {
+		position: absolute;
+		bottom: 12px;
+		color: #555;
+		font-size: 12px;
+		pointer-events: none;
+	}
+</style>
+
+
+</head>
+
+<body>
+
+
+<!-- ============================================================
+     MAIN MENU
+     ============================================================ -->
+
+<section id="mainMenu" class="screen active">
+	<div id="mainMenuContent">
+
+		<h1 id="mainMenuTitle">
+			MAKEITMEME
+		</h1>
+
+		<div id="mainMenuSubtitle">
+			Make memes. Compete. Vote.
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Your Name
+			</h2>
+
+			<input
+				id="nameInput"
+				class="nameInput"
+				type="text"
+				maxlength="20"
+				placeholder="Enter your name"
+			>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<button
+				id="hostLobbyButton"
+				class="primaryButton"
+			>
+				HOST LOBBY
+			</button>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Join Lobby
+			</h2>
+
+			<input
+				id="joinCodeInput"
+				class="codeInput"
+				type="text"
+				maxlength="6"
+				placeholder="ROOM CODE"
+			>
+
+			<button
+				id="joinLobbyButton"
+				class="primaryButton"
+			>
+				JOIN LOBBY
+			</button>
+
+		</div>
+
+		<div
+			id="mainMenuStatus"
+			class="menuStatus"
+		></div>
+
+	</div>
+</section>
+
+
+<!-- ============================================================
+     LOBBY
+     ============================================================ -->
+
+<section id="lobbyScreen" class="screen">
+
+	<div id="lobbyContent">
+
+		<div class="menuPanel">
+
+			<div id="roomCodeLabel">
+				ROOM CODE
+			</div>
+
+			<div id="roomCode">
+				------
+			</div>
+
+			<div id="lobbyStatus">
+				Waiting for players...
+			</div>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Players
+			</h2>
+
+			<div id="playerList">
+			</div>
+
+			<button
+				id="hostStartButton"
+				class="primaryButton"
+			>
+				START GAME
+			</button>
+
+			<button
+				id="leaveLobbyButton"
+				class="secondaryButton"
+				style="margin-top: 10px;"
+			>
+				LEAVE LOBBY
+			</button>
+
+		</div>
+
+	</div>
+
+</section>
+
+
+<!-- ============================================================
+     EDITOR
+     ============================================================ -->
+
+<section id="editorScreen" class="screen">
+
+	<div id="editorTopBar">
+
+		<div id="editorTimer">
+			60
+		</div>
+
+		<div id="editorMemeName">
+			Loading meme...
+		</div>
+
+		<button id="changeMemeButton">
+			CHANGE MEME
+		</button>
+
+	</div>
+
+	<div id="editorMessage">
+		Make your meme before the timer runs out.
+	</div>
+
+	<div id="editor">
+
+		<div id="canvasContainer">
+			<canvas id="memeCanvas"></canvas>
+		</div>
+
+		<div id="controls">
+		</div>
+
+	</div>
+
+</section>
+
+
+<!-- ============================================================
+     SHOWCASE / VOTING
+     ============================================================ -->
+
+<section id="showcaseScreen" class="screen">
+
+	<div id="showcaseContent">
+
+		<img
+			id="showcaseImage"
+			alt="Meme"
+		>
+
+		<div id="voteButtons">
+
+			<button
+				class="voteButton"
+				data-vote="up"
+				title="Thumbs up"
+			>
+				👍
+			</button>
+
+			<button
+				class="voteButton"
+				data-vote="meh"
+				title="Meh"
+			>
+				😐
+			</button>
+
+			<button
+				class="voteButton"
+				data-vote="down"
+				title="Thumbs down"
+			>
+				👎
+			</button>
+
+		</div>
+
+		<div id="showcaseStatus"></div>
+
+	</div>
+
+</section>
+
+
+<script>
+
+	// ============================================================
+	// CONSTANTS
+	// ============================================================
+
+	const MAX_PLAYERS = 16;
+	const ROUND_LENGTH = 60000;
+	const SHOWCASE_LENGTH = 15000;
+		// ============================================================
+	// DOM
+	// ============================================================
+
+	const mainMenu =
+		document.getElementById("mainMenu");
+
+	const lobbyScreen =
+		document.getElementById("lobbyScreen");
+
+	const editorScreen =
+		document.getElementById("editorScreen");
+
+	const showcaseScreen =
+		document.getElementById("showcaseScreen");
+
+
+	const nameInput =
+		document.getElementById("nameInput");
+
+	const joinCodeInput =
+		document.getElementById("joinCodeInput");
+
+	const hostLobbyButton =
+		document.getElementById("hostLobbyButton");
+
+	const joinLobbyButton =
+		document.getElementById("joinLobbyButton");
+
+	const mainMenuStatus =
+		document.getElementById("mainMenuStatus");
+
+
+	const roomCode =
+		document.getElementById("roomCode");
+
+	const lobbyStatus =
+		document.getElementById("lobbyStatus");
+
+	const playerList =
+		document.getElementById("playerList");
+
+	const hostStartButton =
+		document.getElementById("hostStartButton");
+
+	const leaveLobbyButton =
+		document.getElementById("leaveLobbyButton");
+
+
+	const editorTimer =
+		document.getElementById("editorTimer");
+
+	const editorMemeName =
+		document.getElementById("editorMemeName");
+
+	const editorMessage =
+		document.getElementById("editorMessage");
+
+	const changeMemeButton =
+		document.getElementById("changeMemeButton");
+
+	const memeCanvas =
+		document.getElementById("memeCanvas");
+
+	const controls =
+		document.getElementById("controls");
+
+	const showcaseImage =
+		document.getElementById("showcaseImage");
+
+	const voteButtons =
+		document.querySelectorAll(".voteButton");
+
+	const showcaseStatus =
+		document.getElementById("showcaseStatus");
+
+
+	const ctx =
+		memeCanvas.getContext("2d");
+
+
+	// ============================================================
+	// SCREEN CONTROL
+	// ============================================================
+
+	function showScreen(screen) {
+
+		mainMenu.classList.remove("active");
+		lobbyScreen.classList.remove("active");
+		editorScreen.classList.remove("active");
+		showcaseScreen.classList.remove("active");
+
+		screen.classList.add("active");
+	}
+
+
+	// ============================================================
+	// STATUS
+	// ============================================================
+
+	function setMainMenuStatus(text) {
+
+		mainMenuStatus.innerText = text;
+	}
+
+
+	// ============================================================
+	// LOAD MEMES
+	// ============================================================
+
+	async function loadMemes() {
+
+		try {
+
+			const response =
+				await fetch(
+					"https://api.imgflip.com/get_memes?type=image"
+				);
+
+			const data =
+				await response.json();
+
+			if (!data.success) {
+				throw new Error(
+					"Failed to load memes."
+				);
+			}
+
+			memes =
+				data.data.memes;
+
+			console.log(
+				"Loaded memes:",
+				memes.length
+			);
+
+		} catch (error) {
+
+			console.error(error);
+
+			setMainMenuStatus(
+				"Failed to load memes."
+			);
+		}
+	}
+
+
+	// ============================================================
+	// RANDOM MEME
+	// ============================================================
+
+	function getRandomMeme() {
+
+		if (memes.length === 0) {
+			return null;
+		}
+
+		const randomIndex =
+			Math.floor(
+				Math.random() *
+				memes.length
+			);
+
+		return memes[randomIndex];
+	}
+
+
+	// ============================================================
+	// CREATE ROOM CODE
+	// ============================================================
+
+	function generateRoomCode() {
+
+		const characters =
+			"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+		let code = "";
+
+		for (let i = 0; i < 6; i++) {
+
+			code +=
+				characters[
+					Math.floor(
+						Math.random() *
+						characters.length
+					)
+				];
+		}
+
+		return code;
+	}
+
+
+	// ============================================================
+	// VALIDATE NAME
+	// ============================================================
+
+	function validateName() {
+
+		const name =
+			nameInput.value
+				.trim()
+				.slice(0, 20);
+
+		if (name === "") {
+
+			setMainMenuStatus(
+				"Enter your name first."
+			);
+
+			return false;
+		}
+
+		myName = name;
+
+		return true;
+	}
+
+
+	// ============================================================
+	// ============================================================
+	// SUPABASE CONFIG
+	// ============================================================
+
+	// Replace these two values with your Supabase project values.
+	// Supabase Dashboard -> Project Settings -> API
+	const SUPABASE_URL = "https://qthtfrppnleolhymrsjs.supabase.co";
+	const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_a9XHk_nl57xPzYYDnZ-oRQ_dgpln7A1";
+
+	const supabaseClient =
+		window.supabase.createClient(
+			SUPABASE_URL,
+			SUPABASE_PUBLISHABLE_KEY
+		);
+
+
+	// ============================================================
+	// AUTHENTICATE ANONYMOUSLY
+	// ============================================================
+
+	async function ensureSupabaseUser() {
+
+		const existing =
+			await supabaseClient.auth.getUser();
+
+		if (
+			existing.data &&
+			existing.data.user
+		) {
+			myPeerId =
+				existing.data.user.id;
+
+			return true;
+		}
+
+		const result =
+			await supabaseClient.auth.signInAnonymously();
+
+		if (result.error) {
+
+			console.error(
+				"Anonymous sign-in failed:",
+				result.error
+			);
+
+			setMainMenuStatus(
+				"Supabase anonymous sign-in failed."
+			);
+
+			return false;
+		}
+
+		myPeerId =
+			result.data.user.id;
+
+		return true;
+	}
+
+
+	// ============================================================
+	// NETWORK STATE
+	// ============================================================
+
+	let myPeerId = null;
+	let myName = "";
+
+	let isHost = false;
+
+	let roomCodeValue = "";
+	let hostUserId = null;
+
+	let realtimeChannel = null;
+	let realtimeChannelReady = false;
+
+	let participants = [];
+	let gameStarted = false;
+
+
+	// ============================================================
+	// ROUND STATE
+	// ============================================================
+
+	let roundStartTime = 0;
+	let roundTimer = null;
+	let roundSubmitted = false;
+
+	let roundResults = {};
+	let expectedPlayerIds = [];
+	let currentRoundId = null;
+	let hostRoundEndTimer = null;
+
+
+	// ============================================================
+	// SUPABASE CHANNEL
+	// ============================================================
+
+	async function createRealtimeChannel() {
+
+		if (realtimeChannel) {
+
+			try {
+				await supabaseClient.removeChannel(
+					realtimeChannel
+				);
+			} catch (error) {
+				console.error(error);
+			}
+		}
+
+		realtimeChannelReady = false;
+
+		realtimeChannel =
+			supabaseClient.channel(
+			"makeitmeme:" +
+			roomCodeValue,
+			{
+				config: {
+					presence: {
+						key: myPeerId
+					}
+				}
+			}
+		);
+
+		realtimeChannel.on(
+			"broadcast",
+			{
+				event: "game"
+			},
+			function(payload) {
+
+				if (!payload || !payload.payload) {
+					return;
+				}
+
+				handleRealtimeMessage(
+					payload.payload
+				);
+			}
+		);
+
+		realtimeChannel.on(
+			"presence",
+			{
+				event: "sync"
+			},
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
+
+		realtimeChannel.on(
+			"presence",
+			{
+				event: "join"
+			},
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
+
+		realtimeChannel.on(
+			"presence",
+			{
+				event: "leave"
+			},
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
+
+		const status =
+			await new Promise(function(resolve) {
+
+				realtimeChannel.subscribe(
+				function(status, error) {
+
+					console.log(
+						"Realtime subscription status:",
+						status,
+						error || ""
+					);
+
+					if (
+						status === "SUBSCRIBED" ||
+						status === "CHANNEL_ERROR" ||
+						status === "TIMED_OUT" ||
+						status === "CLOSED"
+					) {
+						resolve({
+							status: status,
+							error: error
+						});
+					}
+				}
+			);
+		});
+
+		if (status.status !== "SUBSCRIBED") {
+
+			console.error(
+				"Realtime subscription failed:",
+				status.status,
+				status.error
+			);
+
+			setMainMenuStatus(
+				"Realtime connection failed: " +
+				status.status
+			);
+
+			return false;
+		}
+
+		realtimeChannelReady = true;
+
+		await realtimeChannel.track(
+			{
+				user_id: myPeerId,
+				name: myName,
+				is_host: isHost,
+				joined_at:
+					new Date().toISOString()
+			}
+		);
+
+		updateParticipantsFromPresence();
+
+		return true;
+	}
+
+
+	function updateParticipantsFromPresence() {
+
+		if (!realtimeChannel) {
+			return;
+		}
+
+		const state =
+			realtimeChannel.presenceState();
+
+		const found = [];
+		const seen = new Set();
+
+		for (const key of Object.keys(state)) {
+
+			const states =
+				state[key] || [];
+
+			for (const presence of states) {
+
+				const id =
+					presence.user_id ||
+					key;
+
+				if (seen.has(id)) {
+					continue;
+				}
+
+				seen.add(id);
+
+				found.push(
+					{
+						id: id,
+						name:
+							String(
+								presence.name ||
+								"Player"
+							).slice(0, 20),
+						isHost:
+							Boolean(
+								presence.is_host
+							)
+					}
+				);
+			}
+		}
+
+		participants =
+			found.slice(0, MAX_PLAYERS);
+
+		const host =
+			participants.find(
+				function(player) {
+					return player.isHost;
+				}
+			);
+
+		if (host) {
+			hostUserId = host.id;
+		}
+
+		updatePlayerList();
+
+		if (
+			isHost &&
+			gameStarted
+		) {
+			checkRoundResults();
+		}
+	}
+
+
+	async function broadcastMessage(message) {
+
+		if (
+			!realtimeChannel ||
+			!realtimeChannelReady
+		) {
+			return;
+		}
+
+		try {
+
+			await realtimeChannel.send(
+				{
+					type: "broadcast",
+					event: "game",
+					payload: message
+				}
+			);
+
+		} catch (error) {
+
+			console.error(
+				"Broadcast error:",
+				error
+			);
+		}
+	}
+
+
+	// ============================================================
+	// REALTIME MESSAGE HANDLER
+	// ============================================================
+
+	function handleRealtimeMessage(message) {
+
+		if (!message || !message.type) {
+			return;
+		}
+
+		if (
+			message.senderId ===
+			myPeerId
+		) {
+			return;
+		}
+
+		if (
+			message.type ===
+			"roundResult"
+		) {
+
+			handleRoundResult(
+				message
+			);
+
+			return;
+		}
+
+		if (
+			message.type ===
+			"gameStart"
+		) {
+
+			if (!isHost) {
+				startRound(
+					message.startAt,
+					message.roundId
+				);
+			}
+
+			return;
+		}
+
+		if (
+			message.type ===
+			"showcase"
+		) {
+
+			startShowcase(
+				message.items,
+				message.startAt,
+				message.roundId
+			);
+
+			return;
+		}
+
+		if (
+			message.type ===
+			"backToLobby"
+		) {
+
+			gameStarted = false;
+
+			stopEditorTimer();
+			stopShowcaseTimer();
+
+			showScreen(
+				lobbyScreen
+			);
+
+			lobbyStatus.innerText =
+				"Waiting for the next game...";
+		}
+	}
+
+
+	// ============================================================
+	// HOST LOBBY
+	// ============================================================
+
+	async function hostLobby() {
+
+		if (!validateName()) {
+			return;
+		}
+
+		if (memes.length === 0) {
+
+			setMainMenuStatus(
+				"Memes are still loading..."
+			);
+
+			return;
+		}
+
+		hostLobbyButton.disabled = true;
+		joinLobbyButton.disabled = true;
+
+		setMainMenuStatus(
+			"Connecting to Supabase..."
+		);
+
+		if (!myPeerId) {
+
+			const success =
+				await ensureSupabaseUser();
+
+			if (!success) {
+
+				hostLobbyButton.disabled = false;
+				joinLobbyButton.disabled = false;
+
+				return;
+			}
+		}
+
+		isHost = true;
+
+		let roomCreated = false;
+
+		for (let attempt = 0; attempt < 5; attempt++) {
+
+			roomCodeValue =
+				generateRoomCode();
+
+			const result =
+				await supabaseClient
+					.from("rooms")
+					.insert(
+						{
+							room_code:
+								roomCodeValue,
+							host_id:
+								myPeerId,
+							status:
+								"lobby"
+						}
+					);
+
+			if (!result.error) {
+				roomCreated = true;
+				break;
+			}
+
+			console.warn(
+				"Room creation failed:",
+				result.error
+			);
+		}
+
+		if (!roomCreated) {
+
+			setMainMenuStatus(
+				"Could not create the lobby."
+			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+
+			return;
+		}
+
+		const connected =
+			await createRealtimeChannel();
+
+		if (!connected) {
+
+			await deleteRoom();
+
+			setMainMenuStatus(
+				"Could not connect to the lobby."
+			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+
+			return;
+		}
+
+		roomCode.innerText =
+			roomCodeValue;
+
+		lobbyStatus.innerText =
+			"Waiting for players...";
+
+		showScreen(
+			lobbyScreen
+		);
+	}
+
+
+	// ============================================================
+	// JOIN LOBBY
+	// ============================================================
+
+	async function joinLobby() {
+
+		if (!validateName()) {
+			return;
+		}
+
+		const code =
+			joinCodeInput.value
+				.trim()
+				.toUpperCase();
+
+		if (
+			!/^[A-Z0-9]{6}$/.test(code)
+		) {
+
+			setMainMenuStatus(
+				"Enter a valid 6-character room code."
+			);
+
+			return;
+		}
+
+		if (!myPeerId) {
+
+			const success =
+				await ensureSupabaseUser();
+
+			if (!success) {
+				return;
+			}
+		}
+
+		hostLobbyButton.disabled = true;
+		joinLobbyButton.disabled = true;
+
+		setMainMenuStatus(
+			"Checking room..."
+		);
+
+		const result =
+			await supabaseClient
+				.from("rooms")
+				.select(
+					"room_code,host_id,status"
+				)
+				.eq(
+					"room_code",
+					code
+				)
+				.maybeSingle();
+
+		if (
+			result.error ||
+			!result.data
+		) {
+
+			setMainMenuStatus(
+				"That lobby does not exist."
+			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+
+			return;
+		}
+
+		if (
+			result.data.status !==
+			"lobby"
+		) {
+
+			setMainMenuStatus(
+				"That game has already started."
+			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+
+			return;
+		}
+
+		isHost = false;
+
+		hostUserId =
+			result.data.host_id;
+
+		roomCodeValue =
+			code;
+
+		const connected =
+			await createRealtimeChannel();
+
+		if (!connected) {
+
+			setMainMenuStatus(
+				"Could not connect to the lobby."
+			);
+
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+
+			return;
+		}
+
+		roomCode.innerText =
+			roomCodeValue;
+
+		lobbyStatus.innerText =
+			"Waiting for host...";
+
+		showScreen(
+			lobbyScreen
+		);
+	}
+
+
+	// ============================================================
+	// PLAYER LIST
+	// ============================================================
+
+	function updatePlayerList() {
+
+		playerList.innerHTML = "";
+
+		for (
+			const player of
+			participants
+		) {
+
+			const entry =
+				document.createElement(
+					"div"
+				);
+
+			entry.className =
+				"playerEntry";
+
+			entry.innerText =
+				player.name;
+
+			if (player.isHost) {
+
+				const hostTag =
+					document.createElement(
+						"span"
+					);
+
+				hostTag.className =
+					"hostTag";
+
+				hostTag.innerText =
+					"HOST";
+
+				entry.appendChild(
+					hostTag
+				);
+			}
+
+			if (
+				player.id ===
+				myPeerId
+			) {
+
+				const youTag =
+					document.createElement(
+						"span"
+					);
+
+				youTag.style.color =
+					"#aaa";
+
+				youTag.style.fontSize =
+					"13px";
+
+				youTag.style.marginLeft =
+					"8px";
+
+				youTag.innerText =
+					"YOU";
+
+				entry.appendChild(
+					youTag
+				);
+			}
+
+			playerList.appendChild(
+				entry
+			);
+		}
+
+		hostStartButton.disabled =
+			!isHost ||
+			participants.length < 1 ||
+			gameStarted;
+	}
+
+
+	// ============================================================
+	// START GAME
+	// ============================================================
+
+	async function hostStartGame() {
+
+		if (!isHost || gameStarted) {
+			return;
+		}
+
+		if (memes.length === 0) {
+
+			lobbyStatus.innerText =
+				"Memes are still loading.";
+
+			return;
+		}
+
+		gameStarted = true;
+
+		currentRoundId =
+			crypto.randomUUID();
+
+		roundResults = {};
+
+		expectedPlayerIds =
+			participants.map(
+				function(player) {
+					return player.id;
+				}
+			);
+
+		for (
+			const id of
+			expectedPlayerIds
+		) {
+			roundResults[id] = null;
+		}
+
+		const startAt =
+			Date.now() + 1500;
+
+		await supabaseClient
+			.from("rooms")
+			.update(
+				{
+					status: "playing"
+				}
+			)
+			.eq(
+				"room_code",
+				roomCodeValue
+			)
+			.eq(
+				"host_id",
+				myPeerId
+			);
+
+		await broadcastMessage(
+			{
+				type:
+					"gameStart",
+
+				senderId:
+					myPeerId,
+
+					startAt:
+						startAt,
+
+					roundId:
+						currentRoundId
+			}
+		);
+
+		startRound(
+			startAt,
+			currentRoundId
+		);
+
+		if (hostRoundEndTimer) {
+			clearTimeout(
+				hostRoundEndTimer
+			);
+		}
+
+		hostRoundEndTimer =
+			setTimeout(
+				function() {
+					checkRoundResults(true);
+				},
+				Math.max(
+					0,
+					startAt +
+					ROUND_LENGTH +
+					3000 -
+					Date.now()
+				)
+			);
+
+		updatePlayerList();
+	}
+
+
+	// ============================================================
+	// START LOCAL ROUND
+	// ============================================================
+
+	function startRound(
+		startAt,
+		roundId
+	) {
+
+		roundStartTime =
+			startAt;
+
+		currentRoundId =
+			roundId;
+
+		roundSubmitted =
+			false;
+
+		currentMeme =
+			getRandomMeme();
+
+		createControls();
+		loadMemeImage();
+
+		showScreen(
+			editorScreen
+		);
+
+		editorMessage.innerText =
+			"Make your meme before the timer runs out.";
+
+		startEditorTimer();
+	}
+
+
+	// ============================================================
+	// EDITOR TIMER
+	// ============================================================
+
+	function startEditorTimer() {
+
+		stopEditorTimer();
+
+		updateEditorTimer();
+
+		roundTimer =
+			setInterval(
+				updateEditorTimer,
+				100
+			);
+	}
+
+
+	function stopEditorTimer() {
+
+		if (roundTimer) {
+
+			clearInterval(
+				roundTimer
+			);
+
+			roundTimer = null;
+		}
+	}
+
+
+	function updateEditorTimer() {
+
+		const remaining =
+			Math.max(
+				0,
+				roundStartTime +
+				ROUND_LENGTH -
+				Date.now()
+			);
+
+		const seconds =
+			Math.ceil(
+				remaining / 1000
+			);
+
+		editorTimer.innerText =
+			String(seconds);
+
+		if (
+			remaining <= 0 &&
+			!roundSubmitted
+		) {
+
+			roundSubmitted =
+				true;
+
+			stopEditorTimer();
+
+			editorMessage.innerText =
+			"Time's up! Saving your meme...";
+
+			submitRoundMeme();
+		}
+	}
+
+
+	// ============================================================
+	// DATA URL -> BLOB
+	// ============================================================
+
+	function dataURLToBlob(dataURL) {
+
+		const parts =
+			dataURL.split(",");
+
+		const mime =
+			parts[0]
+				.match(
+					/:(.*?);/
+				)?.[1] ||
+				"image/png";
+
+		const binary =
+			atob(parts[1]);
+
+		const bytes =
+			new Uint8Array(
+				binary.length
+			);
+
+		for (let i = 0; i < binary.length; i++) {
+			bytes[i] =
+				binary.charCodeAt(i);
+		}
+
+		return new Blob(
+			[bytes],
+			{
+				type: mime
+			}
+		);
+	}
+
+
+	// ============================================================
+	// UPLOAD MEME
+	// ============================================================
+
+	async function uploadMemeToSupabase(
+		dataURL
+	) {
+
+		const blob =
+			dataURLToBlob(dataURL);
+
+		const filePath =
+			"rooms/" +
+			roomCodeValue +
+			"/" +
+			myPeerId +
+			"/" +
+			Date.now() +
+			".png";
+
+		const result =
+			await supabaseClient
+				.storage
+				.from("memes")
+				.upload(
+					filePath,
+					blob,
+					{
+						contentType:
+							"image/png",
+						upsert: false
+					}
+				);
+
+		if (result.error) {
+
+			console.error(
+				"Meme upload failed:",
+				result.error
+			);
+
+			return null;
+		}
+
+		const publicURL =
+			supabaseClient
+				.storage
+				.from("memes")
+				.getPublicUrl(
+					filePath
+				);
+
+		return {
+			path: filePath,
+			url:
+				publicURL.data.publicUrl
+		};
+	}
+
+
+	// ============================================================
+	// SUBMIT LOCAL MEME
+	// ============================================================
+
+	async function submitRoundMeme() {
+
+		const image =
+			createMemeDataURL();
+
+		if (!image) {
+
+			editorMessage.innerText =
+				"Could not save your meme.";
+
+			if (isHost) {
+
+				roundResults[
+					myPeerId
+				] = {
+					name: myName,
+					image: null
+				};
+
+				checkRoundResults();
+			}
+
+			return;
+		}
+
+		const upload =
+			await uploadMemeToSupabase(
+				image
+			);
+
+		if (!upload) {
+
+			editorMessage.innerText =
+				"Could not upload your meme.";
+
+			if (isHost) {
+
+				roundResults[
+					myPeerId
+				] = {
+					name: myName,
+					image: null
+				};
+
+				checkRoundResults();
+			}
+
+			return;
+		}
+
+		editorMessage.innerText =
+			"Your meme has been saved.";
+
+		await supabaseClient
+			.from("submissions")
+			.insert(
+				{
+					room_code:
+						roomCodeValue,
+
+					round_id:
+						currentRoundId,
+
+					player_id:
+						myPeerId,
+
+					player_name:
+						myName,
+
+					image_path:
+						upload.path,
+
+					image_url:
+						upload.url
+				}
+			);
+
+		const result = {
+			name: myName,
+			image: upload.url
+		};
+
+		if (isHost) {
+
+			roundResults[
+				myPeerId
+			] = result;
+
+			checkRoundResults();
+
+		} else {
+
+			await broadcastMessage(
+				{
+					type:
+						"roundResult",
+
+					senderId:
+						myPeerId,
+
+					image:
+						upload.url
+				}
+			);
+		}
+	}
+
+
+	// ============================================================
+	// HANDLE ROUND RESULT
+	// ============================================================
+
+	function handleRoundResult(
+		message
+	) {
+
+		if (!isHost || !gameStarted) {
+			return;
+		}
+
+		if (
+			!expectedPlayerIds.includes(
+				message.senderId
+			)
+		) {
+			return;
+		}
+
+		roundResults[
+			message.senderId
+		] = {
+			name:
+				getParticipantName(
+					message.senderId
+				),
+			image:
+				message.image
+		};
+
+		checkRoundResults();
+	}
+
+
+	// ============================================================
+	// CHECK ROUND RESULTS
+	// ============================================================
+
+	function checkRoundResults(
+		force = false
+	) {
+
+		if (!isHost || !gameStarted) {
+			return;
+		}
+
+		const activeIds =
+		expectedPlayerIds.filter(
+			function(id) {
+				return participants.some(
+					function(player) {
+						return player.id === id;
+					}
+				) || id === myPeerId;
+			}
+		);
+
+		if (!force) {
+
+			for (
+				const id of
+				activeIds
+			) {
+
+				if (
+					!roundResults[id] ||
+					!roundResults[id].image
+				) {
+					return;
+				}
+			}
+		}
+
+		const items = [];
+
+		for (
+			const id of
+			activeIds
+		) {
+
+			const result =
+				roundResults[id];
+
+			if (
+				result &&
+				result.image
+			) {
+
+				items.push(
+					{
+						peerId: id,
+						name: result.name,
+						image: result.image
+					}
+				);
+			}
+		}
+
+		if (items.length === 0) {
+			return;
+		}
+
+		if (hostRoundEndTimer) {
+			clearTimeout(
+				hostRoundEndTimer
+			);
+			hostRoundEndTimer = null;
+		}
+
+		const startAt =
+			Date.now() + 1000;
+
+		broadcastMessage(
+			{
+				type:
+					"showcase",
+
+				senderId:
+					myPeerId,
+
+					items:
+						items,
+
+					startAt:
+						startAt,
+
+					roundId:
+						currentRoundId
+			}
+		);
+
+		startShowcase(
+			items,
+			startAt,
+			currentRoundId
+		);
+	}
+
+
+	// ============================================================
+	// START SHOWCASE
+	// ============================================================
+
+	function startShowcase(
+		items,
+		startAt,
+		roundId
+	) {
+
+		if (
+			!items ||
+			items.length === 0
+		) {
+			return;
+		}
+
+		stopEditorTimer();
+
+		showcaseItems =
+			items;
+
+		showcaseStartedAt =
+			startAt;
+
+		currentRoundId =
+			roundId;
+
+		currentShowcaseIndex =
+			-1;
+
+		showScreen(
+			showcaseScreen
+		);
+
+		startShowcaseTimer();
+	}
+
+
+	// ============================================================
+	// SHOWCASE TIMER
+	// ============================================================
+
+	function startShowcaseTimer() {
+
+		stopShowcaseTimer();
+		updateShowcase();
+
+		showcaseTimer =
+			setInterval(
+				updateShowcase,
+				100
+			);
+	}
+
+
+	function stopShowcaseTimer() {
+
+		if (showcaseTimer) {
+
+			clearInterval(
+				showcaseTimer
+			);
+
+			showcaseTimer = null;
+		}
+	}
+
+
+	function updateShowcase() {
+
+		const elapsed =
+			Math.max(
+				0,
+				Date.now() -
+				showcaseStartedAt
+			);
+
+		const index =
+			Math.floor(
+				elapsed /
+				SHOWCASE_LENGTH
+			);
+
+		if (
+			index >=
+			showcaseItems.length
+		) {
+
+			stopShowcaseTimer();
+			finishShowcase();
+
+			return;
+		}
+
+		if (
+			index !==
+			currentShowcaseIndex
+		) {
+
+			currentShowcaseIndex =
+				index;
+
+			showcaseImage.src =
+				showcaseItems[
+					index
+				].image;
+
+			showcaseStatus.innerText =
+				"";
+
+			clearVoteSelection();
+		}
+	}
+
+
+	// ============================================================
+	// VOTE
+	// ============================================================
+
+	async function submitVote(
+		vote
+	) {
+
+		if (
+			currentShowcaseIndex < 0 ||
+			currentShowcaseIndex >=
+			showcaseItems.length ||
+			!currentRoundId
+		) {
+			return;
+		}
+
+		voteButtons.forEach(
+			function(button) {
+
+				button.classList.toggle(
+					"selected",
+					button.dataset.vote === vote
+				);
+			}
+		);
+
+		const item =
+			showcaseItems[
+				currentShowcaseIndex
+			];
+
+		try {
+
+			const result =
+				await supabaseClient
+					.from("votes")
+					.upsert(
+						{
+							round_id:
+								currentRoundId,
+
+							voter_id:
+								myPeerId,
+
+							meme_id:
+								item.image,
+
+							vote:
+								vote
+						},
+						{
+							onConflict:
+								"round_id,voter_id,meme_id"
+						}
+					);
+
+			if (result.error) {
+				throw result.error;
+			}
+
+		} catch (error) {
+
+			console.error(
+				"Vote error:",
+				error
+			);
+		}
+	}
+
+
+	// ============================================================
+	// CLEAR VOTE SELECTION
+	// ============================================================
+
+	function clearVoteSelection() {
+
+		voteButtons.forEach(
+			function(button) {
+
+				button.classList.remove(
+					"selected"
+				);
+			}
+		);
+	}
+
+
+	// ============================================================
+	// FINISH SHOWCASE
+	// ============================================================
+
+	async function finishShowcase() {
+
+		showcaseItems = [];
+		currentShowcaseIndex = -1;
+		gameStarted = false;
+
+		if (isHost) {
+
+			await supabaseClient
+				.from("rooms")
+				.update(
+					{
+						status: "lobby"
+					}
+				)
+				.eq(
+					"room_code",
+					roomCodeValue
+				)
+				.eq(
+					"host_id",
+					myPeerId
+					);
+
+			await broadcastMessage(
+				{
+					type:
+						"backToLobby",
+
+					senderId:
+						myPeerId
+				}
+			);
+		}
+
+		showScreen(
+			lobbyScreen
+		);
+
+		lobbyStatus.innerText =
+			isHost
+				? "Round finished! Ready for another game."
+				: "Round finished! Waiting for the host...";
+
+		updatePlayerList();
+	}
+
+
+	// ============================================================
+	// PARTICIPANT NAME
+	// ============================================================
+
+	function getParticipantName(
+		userId
+	) {
+
+		const player =
+			participants.find(
+				function(item) {
+					return item.id === userId;
+				}
+			);
+
+		if (player) {
+			return player.name;
+		}
+
+		return "Player";
+	}
+
+
+	// ============================================================
+	// DELETE ROOM
+	// ============================================================
+
+	async function deleteRoom() {
+
+		if (!roomCodeValue || !myPeerId) {
+			return;
+		}
+
+		await supabaseClient
+			.from("rooms")
+			.delete()
+			.eq(
+				"room_code",
+				roomCodeValue
+			)
+			.eq(
+				"host_id",
+				myPeerId
+			);
+	}
+
+
+	// ============================================================
+	// LEAVE LOBBY
+	// ============================================================
+
+	async function leaveLobby() {
+
+		stopEditorTimer();
+		stopShowcaseTimer();
+
+		if (hostRoundEndTimer) {
+
+			clearTimeout(
+				hostRoundEndTimer
+			);
+
+			hostRoundEndTimer = null;
+		}
+
+		if (isHost) {
+
+			await broadcastMessage(
+				{
+					type:
+						"backToLobby",
+					senderId:
+						myPeerId
+				}
+			);
+
+			await deleteRoom();
+		}
+
+		await disconnectEverything();
+
+		participants = [];
+		gameStarted = false;
+		isHost = false;
+		roomCodeValue = "";
+		hostUserId = null;
+
+		hostLobbyButton.disabled = false;
+		joinLobbyButton.disabled = false;
+
+		setMainMenuStatus("");
+
+		showScreen(
+			mainMenu
+		);
+	}
+
+
+	// ============================================================
+	// DISCONNECT EVERYTHING
+	// ============================================================
+
+	async function disconnectEverything() {
+
+		realtimeChannelReady = false;
+
+		if (realtimeChannel) {
+
+			try {
+				await realtimeChannel.untrack();
+			} catch (error) {
+			}
+
+			try {
+				await supabaseClient.removeChannel(
+					realtimeChannel
+				);
+			} catch (error) {
+				console.error(error);
+			}
+
+			realtimeChannel = null;
+		}
+	}
+
+
+	// ============================================================
+	// HOST DISCONNECTED
+	// ============================================================
+
+	function handleHostDisconnected() {
+
+		if (isHost) {
+			return;
+		}
+
+		stopEditorTimer();
+		stopShowcaseTimer();
+
+		gameStarted = false;
+
+		alert(
+			"The host left the lobby."
+		);
+
+		disconnectEverything();
+
+		hostLobbyButton.disabled = false;
+		joinLobbyButton.disabled = false;
+
+		showScreen(
+			mainMenu
+		);
+	}
+
+
+	// ============================================================
+	// CHANGE LOCAL MEME
+	// ============================================================
+	// CHANGE LOCAL MEME
+	// ============================================================
+
+	changeMemeButton.addEventListener(
+		"click",
+		function() {
+
+			if (roundSubmitted) {
+				return;
+			}
+
+			currentMeme =
+				getRandomMeme();
+
+			createControls();
+
+			loadMemeImage();
+		}
+	);
+
+
+	// ============================================================
+	// CREATE EDITOR CONTROLS
+	// ============================================================
+
+	function createControls() {
+
+		controls.innerHTML =
+			"";
+
+		textBoxes = [];
+
+		if (!currentMeme) {
+			return;
+		}
+
+		const boxCount =
+			currentMeme.box_count || 2;
+
+
+		for (
+			let i = 0;
+			i < boxCount;
+			i++
+		) {
+
+			const box = {
+
+				text: "",
+
+				x: 50,
+
+				y: 50,
+
+				size: 8,
+
+				index: i
+			};
+
+
+			if (
+				boxCount === 2
+			) {
+
+				if (i === 0) {
+					box.y = 10;
+				} else {
+					box.y = 90;
+				}
+
+			} else {
+
+				box.y =
+					10 +
+					(
+						80 /
+						Math.max(
+							1,
+							boxCount - 1
+						)
+					) *
+					i;
+			}
+
+
+			textBoxes.push(
+				box
+			);
+
+			createTextBoxControls(
+				box
+			);
+		}
+	}
+
+
+	// ============================================================
+	// CREATE TEXT BOX CONTROLS
+	// ============================================================
+
+	function createTextBoxControls(
+		box
+	) {
+
+		const container =
+			document.createElement(
+				"div"
+			);
+
+		container.className =
+			"textBoxControls";
+
+
+		const title =
+			document.createElement(
+				"h3"
+			);
+
+		title.innerText =
+			"Text Box " +
+			(box.index + 1);
+
+		container.appendChild(
+			title
+		);
+
+
+		// TEXT
+
+		const textLabel =
+			document.createElement(
+				"label"
+			);
+
+		textLabel.innerText =
+			"Text";
+
+		container.appendChild(
+			textLabel
+		);
+
+
+		const textInput =
+			document.createElement(
+				"input"
+			);
+
+		textInput.type =
+			"text";
+
+		textInput.placeholder =
+			getPlaceholder(
+				box.index,
+				currentMeme.box_count
+			);
+
+		textInput.value =
+			box.text;
+
+
+		textInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.text =
+					textInput.value;
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			textInput
+		);
+
+
+		// X
+
+		const xLabel =
+			document.createElement(
+				"label"
+			);
+
+		xLabel.innerText =
+			"X Position (%)";
+
+		container.appendChild(
+			xLabel
+		);
+
+
+		const xInput =
+			document.createElement(
+				"input"
+			);
+
+		xInput.type =
+			"number";
+
+		xInput.className =
+			"numberInput";
+
+		xInput.min = 0;
+
+		xInput.max = 100;
+
+		xInput.step = 0.1;
+
+		xInput.value =
+			box.x;
+
+
+		xInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.x =
+					clamp(
+						parseFloat(
+							xInput.value
+						) || 0,
+						0,
+						100
+					);
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			xInput
+		);
+
+
+		// Y
+
+		const yLabel =
+			document.createElement(
+				"label"
+			);
+
+		yLabel.innerText =
+			"Y Position (%)";
+
+		container.appendChild(
+			yLabel
+		);
+
+
+		const yInput =
+			document.createElement(
+				"input"
+			);
+
+		yInput.type =
+			"number";
+
+		yInput.className =
+			"numberInput";
+
+		yInput.min = 0;
+
+		yInput.max = 100;
+
+		yInput.step = 0.1;
+
+		yInput.value =
+			box.y;
+
+
+		yInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.y =
+					clamp(
+						parseFloat(
+							yInput.value
+						) || 0,
+						0,
+						100
+					);
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			yInput
+		);
+
+
+		// FONT SIZE
+
+		const sizeLabel =
+			document.createElement(
+				"label"
+			);
+
+		sizeLabel.innerText =
+			"Font Size (%)";
+
+		container.appendChild(
+			sizeLabel
+		);
+
+
+		const sizeInput =
+			document.createElement(
+				"input"
+			);
+
+		sizeInput.type =
+			"number";
+
+		sizeInput.className =
+			"numberInput";
+
+		sizeInput.min = 1;
+
+		sizeInput.max = 30;
+
+		sizeInput.step = 1;
+
+		sizeInput.value =
+			box.size;
+
+
+		sizeInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.size =
+					clamp(
+						Math.round(
+							parseFloat(
+								sizeInput.value
+							) || 1
+						),
+						1,
+						30
+					);
+
+				sizeInput.value =
+					box.size;
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			sizeInput
+		);
+
+
+		// RESET
+
+		const resetButton =
+			document.createElement(
+				"button"
+			);
+
+		resetButton.className =
+			"resetButton";
+
+		resetButton.innerText =
+			"Reset Position";
+
+
+		resetButton.addEventListener(
+			"click",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.x =
+					50;
+
+				if (
+					currentMeme.box_count ===
+					2
+				) {
+
+					box.y =
+						box.index === 0
+							? 10
+							: 90;
+
+				} else {
+
+					box.y =
+						10 +
+						(
+							80 /
+							Math.max(
+								1,
+								currentMeme.box_count - 1
+							)
+						) *
+						box.index;
+				}
+
+
+				xInput.value =
+					box.x;
+
+				yInput.value =
+					box.y;
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			resetButton
+		);
+
+		controls.appendChild(
+			container
+		);
+
+
+		box.xInput =
+			xInput;
+
+		box.yInput =
+			yInput;
+
+		box.sizeInput =
+			sizeInput;
+	}
+
+
+	// ============================================================
+	// PLACEHOLDER
+	// ============================================================
+
+	function getPlaceholder(
+		index,
+		boxCount
+	) {
+
+		if (boxCount === 1) {
+			return "Meme text...";
+		}
+
+		if (index === 0) {
+			return "Top text...";
+		}
+
+		if (index === 1) {
+			return "Bottom text...";
+		}
+
+		return "Text " +
+			(index + 1) +
+			"...";
+	}
+
+
+	// ============================================================
+	// LOAD IMAGE
+	// ============================================================
+
+	function loadMemeImage() {
+
+		if (!currentMeme) {
+			return;
+		}
+
+		const token =
+			++imageLoadToken;
+
+		currentImage =
+			new Image();
+
+		currentImage.crossOrigin =
+			"anonymous";
+
+		editorMemeName.innerText =
+			currentMeme.name;
+
+
+		currentImage.onload =
+			function() {
+
+				if (
+					token !==
+					imageLoadToken
+				) {
+					return;
+				}
+
+				memeCanvas.width =
+					currentImage.naturalWidth;
+
+				memeCanvas.height =
+					currentImage.naturalHeight;
+
+				drawMeme();
+			};
+
+
+		currentImage.onerror =
+			function() {
+
+				console.error(
+					"Failed to load meme image."
+				);
+			};
+
+
+		currentImage.src =
+			currentMeme.url;
+	}
+
+
+	// ============================================================
+	// DRAW MEME
+	// ============================================================
+
+	function drawMeme() {
+
+		if (
+			!currentImage ||
+			!currentImage.complete
+		) {
+			return;
+		}
+
+
+		ctx.clearRect(
+			0,
+			0,
+			memeCanvas.width,
+			memeCanvas.height
+		);
+
+
+		ctx.drawImage(
+			currentImage,
+			0,
+			0,
+			memeCanvas.width,
+			memeCanvas.height
+		);
+
+
+		for (
+			const box of
+			textBoxes
+		) {
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				memeCanvas.width *
+				(box.x / 100);
+
+			const y =
+				memeCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				memeCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
+
+			drawText(
+				ctx,
+				box.text,
+				x,
+				y,
+				fontSize,
+				memeCanvas.width
+			);
+		}
+
+
+		if (!roundSubmitted) {
+			drawTextHandles();
+		}
+	}
+
+
+	// ============================================================
+	// TEXT STYLE
+	// ============================================================
+
+	function setupTextStyle(
+		drawCtx,
+		fontSize
+	) {
+
+		drawCtx.font =
+			"bold " +
+			fontSize +
+			"px Impact, Arial Black, sans-serif";
+
+		drawCtx.textAlign =
+			"center";
+
+		drawCtx.textBaseline =
+			"middle";
+
+		drawCtx.fillStyle =
+			"white";
+
+		drawCtx.strokeStyle =
+			"black";
+
+		drawCtx.lineWidth =
+			Math.max(
+				5,
+				fontSize * 0.16
+			);
+
+		drawCtx.lineJoin =
+			"round";
+	}
+
+
+	// ============================================================
+	// DRAW TEXT
+	// ============================================================
+
+	function drawText(
+		drawCtx,
+		text,
+		x,
+		y,
+		fontSize,
+		canvasWidth
+	) {
+
+		const maxWidth =
+			canvasWidth * 0.9;
+
+		const lines =
+			wrapText(
+				drawCtx,
+				text,
+				maxWidth,
+				fontSize
+			);
+
+		const lineHeight =
+			fontSize * 1.05;
+
+		const totalHeight =
+			lines.length *
+			lineHeight;
+
+		let startY =
+			y -
+			totalHeight / 2 +
+			lineHeight / 2;
+
+
+		for (
+			const line of
+			lines
+		) {
+
+			drawSpacedText(
+				drawCtx,
+				line,
+				x,
+				startY,
+				fontSize
+			);
+
+			startY +=
+				lineHeight;
+		}
+	}
+
+
+	// ============================================================
+	// DRAW SPACED TEXT
+	// ============================================================
+
+	function drawSpacedText(
+		drawCtx,
+		text,
+		x,
+		y,
+		fontSize
+	) {
+
+		const letterSpacing =
+			fontSize * 0.055;
+
+		const characters =
+			Array.from(text);
+
+		if (
+			characters.length === 0
+		) {
+			return;
+		}
+
+
+		let totalWidth = 0;
+
+
+		for (
+			const character of
+			characters
+		) {
+
+			totalWidth +=
+				drawCtx.measureText(
+					character
+				).width;
+		}
+
+
+		totalWidth +=
+			letterSpacing *
+			(characters.length - 1);
+
+
+		let currentX =
+			x -
+			totalWidth / 2;
+
+
+		for (
+			const character of
+			characters
+		) {
+
+			const characterWidth =
+				drawCtx.measureText(
+					character
+				).width;
+
+			const characterX =
+				currentX +
+				characterWidth / 2;
+
+
+			drawCtx.strokeText(
+				character,
+				characterX,
+				y
+			);
+
+			drawCtx.fillText(
+				character,
+				characterX,
+				y
+			);
+
+
+			currentX +=
+				characterWidth +
+				letterSpacing;
+		}
+	}
+
+
+	// ============================================================
+	// WRAP TEXT
+	// ============================================================
+
+	function wrapText(
+		drawCtx,
+		text,
+		maxWidth,
+		fontSize
+	) {
+
+		const words =
+			text.split(" ");
+
+		const lines = [];
+
+		let currentLine =
+			"";
+
+
+		for (
+			const word of
+			words
+		) {
+
+			const testLine =
+				currentLine === ""
+					? word
+					: currentLine +
+						" " +
+						word;
+
+
+			const width =
+				getSpacedTextWidth(
+					drawCtx,
+					testLine,
+					fontSize
+				);
+
+
+			if (
+				width > maxWidth &&
+				currentLine !== ""
+			) {
+
+				lines.push(
+					currentLine
+				);
+
+				currentLine =
+					word;
+
+			} else {
+
+				currentLine =
+					testLine;
+			}
+		}
+
+
+		if (
+			currentLine !== ""
+		) {
+
+			lines.push(
+				currentLine
+			);
+		}
+
+
+		return lines;
+	}
+
+
+	// ============================================================
+	// SPACED TEXT WIDTH
+	// ============================================================
+
+	function getSpacedTextWidth(
+		drawCtx,
+		text,
+		fontSize
+	) {
+
+		const letterSpacing =
+			fontSize * 0.035;
+
+		const characters =
+			Array.from(text);
+
+		let width = 0;
+
+
+		for (
+			const character of
+			characters
+		) {
+
+			width +=
+				drawCtx.measureText(
+					character
+				).width;
+		}
+
+
+		if (
+			characters.length > 1
+		) {
+
+			width +=
+				letterSpacing *
+				(characters.length - 1);
+		}
+
+
+		return width;
+	}
+
+
+	// ============================================================
+	// DRAW HANDLES
+	// ============================================================
+
+	function drawTextHandles() {
+
+		for (
+			const box of
+			textBoxes
+		) {
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				memeCanvas.width *
+				(box.x / 100);
+
+			const y =
+				memeCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				memeCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
+
+			const textWidth =
+				Math.min(
+					getSpacedTextWidth(
+						ctx,
+						box.text,
+						fontSize
+					),
+					memeCanvas.width *
+					0.9
+				);
+
+
+			const handleWidth =
+				Math.max(
+					60,
+					textWidth + 20
+				);
+
+			const handleHeight =
+				fontSize + 20;
+
+
+			ctx.strokeStyle =
+				"rgba(255,255,255,0.6)";
+
+			ctx.lineWidth =
+				2;
+
+			ctx.setLineDash(
+				[
+					6,
+					4
+				]
+			);
+
+
+			ctx.strokeRect(
+				x -
+					handleWidth / 2,
+				y -
+					handleHeight / 2,
+				handleWidth,
+				handleHeight
+			);
+
+
+			ctx.setLineDash(
+				[]
+			);
+		}
+	}
+
+
+	// ============================================================
+	// FIND BOX UNDER POSITION
+	// ============================================================
+
+	function getBoxAtPosition(
+		mouseX,
+		mouseY
+	) {
+
+		for (
+			let i =
+				textBoxes.length - 1;
+			i >= 0;
+			i--
+		) {
+
+			const box =
+				textBoxes[i];
+
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				memeCanvas.width *
+				(box.x / 100);
+
+			const y =
+				memeCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				memeCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
+
+			const textWidth =
+				Math.min(
+					getSpacedTextWidth(
+						ctx,
+						box.text,
+						fontSize
+					),
+					memeCanvas.width *
+					0.9
+				);
+
+
+			const boxWidth =
+				Math.max(
+					60,
+					textWidth + 30
+				);
+
+			const boxHeight =
+				fontSize + 30;
+
+
+			if (
+				mouseX >=
+					x -
+					boxWidth / 2 &&
+				mouseX <=
+					x +
+					boxWidth / 2 &&
+				mouseY >=
+					y -
+					boxHeight / 2 &&
+				mouseY <=
+					y +
+					boxHeight / 2
+			) {
+
+				return box;
+			}
+		}
+
+
+		return null;
+	}
+
+
+	// ============================================================
+	// MOUSE DOWN
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"mousedown",
+		function(event) {
+
+			if (roundSubmitted) {
+				return;
+			}
+
+
+			const position =
+				getMousePosition(
+					event
+				);
+
+
+			const box =
+				getBoxAtPosition(
+					position.x,
+					position.y
+				);
+
+
+			if (!box) {
+				return;
+			}
+
+
+			draggingBox =
+				box;
+
+
+			dragOffsetX =
+				position.x -
+				memeCanvas.width *
+				(box.x / 100);
+
+
+			dragOffsetY =
+				position.y -
+				memeCanvas.height *
+				(box.y / 100);
+		}
+	);
+
+
+	// ============================================================
+	// MOUSE MOVE
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"mousemove",
+		function(event) {
+
+			if (
+				!draggingBox ||
+				roundSubmitted
+			) {
+				return;
+			}
+
+
+			const position =
+				getMousePosition(
+					event
+				);
+
+
+			const newX =
+				position.x -
+				dragOffsetX;
+
+			const newY =
+				position.y -
+				dragOffsetY;
+
+
+			draggingBox.x =
+				clamp(
+					newX /
+						memeCanvas.width *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.y =
+				clamp(
+					newY /
+						memeCanvas.height *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.xInput.value =
+				draggingBox.x.toFixed(
+					1
+				);
+
+			draggingBox.yInput.value =
+				draggingBox.y.toFixed(
+					1
+				);
+
+
+			drawMeme();
+		}
+	);
+
+
+	// ============================================================
+	// MOUSE UP
+	// ============================================================
+
+	document.addEventListener(
+		"mouseup",
+		function() {
+
+			draggingBox =
+				null;
+		}
+	);
+
+
+	// ============================================================
+	// TOUCH START
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"touchstart",
+		function(event) {
+
+			if (roundSubmitted) {
+				return;
+			}
+
+
+			event.preventDefault();
+
+
+			const touch =
+				event.touches[0];
+
+
+			const position =
+				getTouchPosition(
+					touch
+				);
+
+
+			const box =
+				getBoxAtPosition(
+					position.x,
+					position.y
+				);
+
+
+			if (!box) {
+				return;
+			}
+
+
+			draggingBox =
+				box;
+
+
+			dragOffsetX =
+				position.x -
+				memeCanvas.width *
+				(box.x / 100);
+
+
+			dragOffsetY =
+				position.y -
+				memeCanvas.height *
+				(box.y / 100);
+		},
+		{
+			passive: false
+		}
+	);
+
+
+	// ============================================================
+	// TOUCH MOVE
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"touchmove",
+		function(event) {
+
+			if (
+				!draggingBox ||
+				roundSubmitted
+			) {
+				return;
+			}
+
+
+			event.preventDefault();
+
+
+			const touch =
+				event.touches[0];
+
+
+			const position =
+				getTouchPosition(
+					touch
+				);
+
+
+			const newX =
+				position.x -
+				dragOffsetX;
+
+			const newY =
+				position.y -
+				dragOffsetY;
+
+
+			draggingBox.x =
+				clamp(
+					newX /
+						memeCanvas.width *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.y =
+				clamp(
+					newY /
+						memeCanvas.height *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.xInput.value =
+				draggingBox.x.toFixed(
+					1
+				);
+
+			draggingBox.yInput.value =
+				draggingBox.y.toFixed(
+					1
+				);
+
+
+			drawMeme();
+		},
+		{
+			passive: false
+		}
+	);
+
+
+	// ============================================================
+	// TOUCH END
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"touchend",
+		function() {
+
+			draggingBox =
+				null;
+		}
+	);
+
+
+	// ============================================================
+	// MOUSE POSITION
+	// ============================================================
+
+	function getMousePosition(
+		event
+	) {
+
+		const rect =
+			memeCanvas.getBoundingClientRect();
+
+
+		const scaleX =
+			memeCanvas.width /
+			rect.width;
+
+		const scaleY =
+			memeCanvas.height /
+			rect.height;
+
+
+		return {
+
+			x:
+				(event.clientX -
+					rect.left) *
+				scaleX,
+
+			y:
+				(event.clientY -
+					rect.top) *
+				scaleY
+		};
+	}
+
+
+	// ============================================================
+	// TOUCH POSITION
+	// ============================================================
+
+	function getTouchPosition(
+		touch
+	) {
+
+		const rect =
+			memeCanvas.getBoundingClientRect();
+
+
+		const scaleX =
+			memeCanvas.width /
+			rect.width;
+
+		const scaleY =
+			memeCanvas.height /
+			rect.height;
+
+
+		return {
+
+			x:
+				(touch.clientX -
+					rect.left) *
+				scaleX,
+
+			y:
+				(touch.clientY -
+					rect.top) *
+				scaleY
+		};
+	}
+
+
+	// ============================================================
+	// CREATE FINAL MEME IMAGE
+	// ============================================================
+
+	function createMemeDataURL() {
+
+		if (
+			!currentImage ||
+			!currentImage.complete
+		) {
+
+			return null;
+		}
+
+
+		const exportCanvas =
+			document.createElement(
+				"canvas"
+			);
+
+		exportCanvas.width =
+			memeCanvas.width;
+
+		exportCanvas.height =
+			memeCanvas.height;
+
+
+		const exportCtx =
+			exportCanvas.getContext(
+				"2d"
+			);
+
+
+		exportCtx.drawImage(
+			currentImage,
+			0,
+			0,
+			exportCanvas.width,
+			exportCanvas.height
+		);
+
+
+		for (
+			const box of
+			textBoxes
+		) {
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				exportCanvas.width *
+				(box.x / 100);
+
+			const y =
+				exportCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				exportCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				exportCtx,
+				fontSize
+			);
+
+
+			drawText(
+				exportCtx,
+				box.text,
+				x,
+				y,
+				fontSize,
+				exportCanvas.width
+			);
+		}
+
+
+		try {
+
+			return exportCanvas.toDataURL(
+				"image/png"
+			);
+
+		} catch (error) {
+
+			console.error(
+				"Could not export meme:",
+				error
+			);
+
+			return null;
+		}
+	}
+
+
+	// ============================================================
+	// CLAMP
+	// ============================================================
+
+	function clamp(
+		value,
+		min,
+		max
+	) {
+
+		return Math.min(
+			Math.max(
+				value,
+				min
+			),
+			max
+		);
+	}
+
+
+	// ============================================================
+	// ============================================================
+	// END OF NETWORK / EDITOR SUPPORT
+	// ============================================================
+
+
+	// BUTTONS
+	// ============================================================
+
+	hostLobbyButton.addEventListener(
+		"click",
+		hostLobby
+	);
+
+	joinLobbyButton.addEventListener(
+		"click",
+		joinLobby
+	);
+
+	hostStartButton.addEventListener(
+		"click",
+		hostStartGame
+	);
+
+	leaveLobbyButton.addEventListener(
+		"click",
+		leaveLobby
+	);
+
+
+	voteButtons.forEach(
+		function(button) {
+
+			button.addEventListener(
+				"click",
+				function() {
+
+					submitVote(
+						button.dataset.vote
+					);
+				}
+			);
+		}
+	);
+
+
+	joinCodeInput.addEventListener(
+		"input",
+		function() {
+
+			joinCodeInput.value =
+				joinCodeInput.value
+					.toUpperCase()
+					.replace(
+						/[^A-Z0-9]/g,
+						""
+					);
+		}
+	);
+
+
+	nameInput.addEventListener(
+		"keydown",
+		function(event) {
+
+			if (
+				event.key ===
+				"Enter"
+			) {
+
+				hostLobby();
+			}
+		}
+	);
+
+
+	joinCodeInput.addEventListener(
+		"keydown",
+		function(event) {
+
+			if (
+				event.key ===
+				"Enter"
+			) {
+
+				joinLobby();
+			}
+		}
+	);
+
+
+	// ============================================================
+	// START
+	// ============================================================
+
+	loadMemes();
+
+</script>
+
+</body>
+</html>
+
+
+Done — I rebuilt the game flow around the tournament system you described.
+
+Download the updated MakeItMeme Tournament HTML
+
+It now includes:
+
+2–10 players only, and the lobby must have an even number before Start Game enables.
+Start Game properly begins the first round.
+Leave Lobby works, and when the host leaves, the Supabase room is deleted and everyone is kicked back to the main menu.
+Rounds 1–4:
+60-second meme creation.
+Top counter shows submitted memes / players.
+When everyone submits, the 60-second timer is skipped immediately.
+Voting timer shows at the top.
+Voting buttons are red → pink → yellow → orange → green.
+Their actual values are hidden: -20, -10, +5, +10, +20.
+You cannot vote for your own meme.
+When everyone eligible has voted, the timer drops to 5 seconds instead of waiting out the full 15.
+Highest score wins; ties are randomized.
+Winner is displayed before the next round.
+Round 5 final tournament:
+Uses the four winners from rounds 1–4.
+The four winners are shuffled into two random pairs.
+Each matchup shows the two memes side-by-side.
+Click a meme, then use the single VOTE FOR SELECTED MEME button.
+A creator cannot vote when their own meme is competing.
+Winners of the two matchups face each other.
+Final winner is revealed.
+Everyone returns to the lobby.
+
+I also fixed the voting synchronization so the 5-second early-finish actually advances the matchup correctly, rather than just changing the displayed timer. The HTML passes a JavaScript syntax check.
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MakeItMeme</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+	* {
+		box-sizing: border-box;
+	}
+
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		width: 100%;
+		height: 100%;
+		background: #222;
+		color: white;
+		font-family: Arial, sans-serif;
+	}
+
+	body {
+		overflow-x: hidden;
+	}
+
+	button,
+	input {
+		font-family: Arial, sans-serif;
+	}
+
+	button {
+		cursor: pointer;
+	}
+
+	/* ============================================================
+	   SCREENS
+	   ============================================================ */
+
+	.screen {
+		display: none;
+		width: 100%;
+		min-height: 100vh;
+	}
+
+	.screen.active {
+		display: flex;
+	}
+
+	/* ============================================================
+	   MAIN MENU
+	   ============================================================ */
+
+	#mainMenu {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	#mainMenuContent {
+		width: 420px;
+		max-width: 90vw;
+	}
+
+	#mainMenuTitle {
+		font-size: 64px;
+		font-weight: 900;
+		margin: 0 0 10px 0;
+		letter-spacing: 2px;
+	}
+
+	#mainMenuSubtitle {
+		color: #aaa;
+		font-size: 18px;
+		margin-bottom: 35px;
+	}
+
+	.menuPanel {
+		background: #333;
+		padding: 25px;
+		border-radius: 12px;
+		margin-bottom: 20px;
+	}
+
+	.menuPanel h2 {
+		margin-top: 0;
+	}
+
+	.nameInput,
+	.codeInput {
+		width: 100%;
+		padding: 14px;
+		border: none;
+		border-radius: 6px;
+		font-size: 20px;
+		text-align: center;
+		margin-bottom: 12px;
+		background: #eee;
+		color: #222;
+	}
+
+	.primaryButton {
+		width: 100%;
+		padding: 15px;
+		border: none;
+		border-radius: 6px;
+		background: #4caf50;
+		color: white;
+		font-size: 22px;
+		font-weight: bold;
+	}
+
+	.primaryButton:hover {
+		background: #45a049;
+	}
+
+	.secondaryButton {
+		width: 100%;
+		padding: 13px;
+		border: none;
+		border-radius: 6px;
+		background: #555;
+		color: white;
+		font-size: 18px;
+	}
+
+	.secondaryButton:hover {
+		background: #666;
+	}
+
+	.menuStatus {
+		min-height: 24px;
+		color: #ffcc66;
+		margin-top: 12px;
+	}
+
+	/* ============================================================
+	   LOBBY
+	   ============================================================ */
+
+	#lobbyScreen {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	#lobbyContent {
+		width: 520px;
+		max-width: 92vw;
+	}
+
+	#roomCode {
+		font-size: 48px;
+		font-weight: 900;
+		letter-spacing: 8px;
+		margin: 10px 0;
+	}
+
+	#roomCodeLabel {
+		color: #aaa;
+		font-size: 16px;
+	}
+
+	#hostStartButton {
+		margin-top: 20px;
+	}
+
+	#hostStartButton:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	#playerList {
+		text-align: left;
+		margin-top: 20px;
+	}
+
+	.playerEntry {
+		background: #444;
+		padding: 12px 15px;
+		border-radius: 6px;
+		margin-bottom: 8px;
+		font-size: 18px;
+	}
+
+	.hostTag {
+		color: #ffd34d;
+		font-size: 13px;
+		font-weight: bold;
+		margin-left: 8px;
+	}
+
+	/* ============================================================
+	   EDITOR
+	   ============================================================ */
+
+	#editorScreen {
+		display: none;
+		flex-direction: column;
+	}
+
+	#editorScreen.active {
+		display: flex;
+	}
+
+	#editorTopBar {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 25px;
+		flex-wrap: wrap;
+		padding: 14px 20px;
+		background: #111;
+		border-bottom: 1px solid #444;
+	}
+
+	#editorTimer {
+		font-size: 30px;
+		font-weight: bold;
+	}
+
+	#editorMemeName {
+		color: #bbb;
+		font-size: 18px;
+	}
+
+	#changeMemeButton {
+		padding: 10px 16px;
+		border: none;
+		border-radius: 5px;
+		background: #555;
+		color: white;
+		font-size: 16px;
+	}
+
+	#editor {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: flex-start;
+		gap: 30px;
+		margin: 20px;
+		flex: 1;
+	}
+
+	#canvasContainer {
+		position: relative;
+		width: fit-content;
+		max-width: 70vw;
+	}
+
+	#memeCanvas {
+		display: block;
+		max-width: 70vw;
+		max-height: 75vh;
+		background: black;
+		cursor: crosshair;
+		touch-action: none;
+	}
+
+	#controls {
+		width: 300px;
+		max-width: 90vw;
+		text-align: left;
+	}
+
+	.textBoxControls {
+		background: #333;
+		padding: 15px;
+		margin-bottom: 15px;
+		border-radius: 8px;
+	}
+
+	.textBoxControls h3 {
+		margin-top: 0;
+	}
+
+	.textBoxControls label {
+		display: block;
+		margin-top: 8px;
+	}
+
+	.textBoxControls input[type="text"] {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 8px;
+		font-size: 16px;
+	}
+
+	.numberInput {
+		width: 80px;
+		padding: 6px;
+		font-size: 16px;
+	}
+
+	.resetButton {
+		margin-top: 10px;
+		padding: 6px 12px;
+		cursor: pointer;
+	}
+
+	#editorMessage {
+		text-align: center;
+		color: #aaa;
+		padding: 10px;
+	}
+
+	/* ============================================================
+	   SHOWCASE / VOTING
+	   ============================================================ */
+
+	#showcaseScreen {
+		display: none;
+		align-items: center;
+		justify-content: center;
+		background: #000;
+		min-height: 100vh;
+	}
+
+	#showcaseScreen.active {
+		display: flex;
+	}
+
+	#showcaseContent {
+		width: 100%;
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 18px;
+		padding: 30px;
+		position: relative;
+	}
+
+	#showcaseTopBar {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 76px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 28px;
+		background: #111;
+		border-bottom: 1px solid #333;
+		font-weight: bold;
+	}
+
+	#gameRoundLabel {
+		font-size: 24px;
+	}
+
+	#showcaseTimer {
+		font-size: 30px;
+		min-width: 72px;
+		text-align: center;
+	}
+
+	#showcaseProgress {
+		color: #aaa;
+		font-size: 18px;
+	}
+
+	#showcaseMode {
+		font-size: 20px;
+		font-weight: bold;
+		color: #ddd;
+	}
+
+	#showcaseImage {
+		display: block;
+		max-width: 88vw;
+		max-height: 68vh;
+		object-fit: contain;
+		margin-top: 62px;
+	}
+
+	#showcaseCreator {
+		color: #aaa;
+		font-size: 15px;
+		min-height: 18px;
+	}
+
+	#voteButtons {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 14px;
+	}
+
+	.voteButton {
+		width: 78px;
+		height: 58px;
+		border: 3px solid transparent;
+		border-radius: 12px;
+		color: #111;
+		font-size: 0;
+		transition: transform 0.1s, opacity 0.1s, border-color 0.1s;
+	}
+
+	.voteButton:hover:not(:disabled) {
+		transform: scale(1.08);
+	}
+
+	.voteButton.selected {
+		border-color: white;
+		transform: scale(1.08);
+	}
+
+	.voteButton:disabled {
+		opacity: 0.28;
+		cursor: not-allowed;
+	}
+
+	.voteRed {
+		background: #ef4444;
+	}
+
+	.votePink {
+		background: #ec4899;
+	}
+
+	.voteYellow {
+		background: #facc15;
+	}
+
+	.voteOrange {
+		background: #f97316;
+	}
+
+	.voteGreen {
+		background: #22c55e;
+	}
+
+	#showcaseStatus {
+		min-height: 22px;
+		color: #aaa;
+		font-size: 14px;
+		text-align: center;
+	}
+
+	#finalChoices {
+		display: none;
+		width: min(1100px, 92vw);
+		justify-content: center;
+		align-items: stretch;
+		gap: 24px;
+		margin-top: 65px;
+	}
+
+	.finalCard {
+		flex: 1;
+		min-width: 0;
+		padding: 10px;
+		border: 3px solid transparent;
+		border-radius: 14px;
+		background: #191919;
+		cursor: pointer;
+	}
+
+	.finalCard:hover {
+		border-color: #666;
+	}
+
+	.finalCard.selected {
+		border-color: white;
+	}
+
+	.finalCard img {
+		display: block;
+		width: 100%;
+		max-height: 62vh;
+		object-fit: contain;
+	}
+
+	#finalVoteButton {
+		display: none;
+		padding: 14px 28px;
+		border: none;
+		border-radius: 10px;
+		background: white;
+		color: #111;
+		font-size: 20px;
+		font-weight: bold;
+	}
+
+	#finalVoteButton:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+
+	/* ============================================================
+	   EDITOR TOP COUNTER
+	   ============================================================ */
+
+	#editorCounter {
+		font-size: 24px;
+		font-weight: bold;
+		min-width: 78px;
+		text-align: center;
+	}
+
+</style>
+
+
+</head>
+
+<body>
+
+
+<!-- ============================================================
+     MAIN MENU
+     ============================================================ -->
+
+<section id="mainMenu" class="screen active">
+	<div id="mainMenuContent">
+
+		<h1 id="mainMenuTitle">
+			MAKEITMEME
+		</h1>
+
+		<div id="mainMenuSubtitle">
+			Make memes. Compete. Vote.
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Your Name
+			</h2>
+
+			<input
+				id="nameInput"
+				class="nameInput"
+				type="text"
+				maxlength="20"
+				placeholder="Enter your name"
+			>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<button
+				id="hostLobbyButton"
+				class="primaryButton"
+			>
+				HOST LOBBY
+			</button>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Join Lobby
+			</h2>
+
+			<input
+				id="joinCodeInput"
+				class="codeInput"
+				type="text"
+				maxlength="6"
+				placeholder="ROOM CODE"
+			>
+
+			<button
+				id="joinLobbyButton"
+				class="primaryButton"
+			>
+				JOIN LOBBY
+			</button>
+
+		</div>
+
+		<div
+			id="mainMenuStatus"
+			class="menuStatus"
+		></div>
+
+	</div>
+</section>
+
+
+<!-- ============================================================
+     LOBBY
+     ============================================================ -->
+
+<section id="lobbyScreen" class="screen">
+
+	<div id="lobbyContent">
+
+		<div class="menuPanel">
+
+			<div id="roomCodeLabel">
+				ROOM CODE
+			</div>
+
+			<div id="roomCode">
+				------
+			</div>
+
+			<div id="lobbyStatus">
+				Waiting for players...
+			</div>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Players
+			</h2>
+
+			<div id="playerList">
+			</div>
+
+			<button
+				id="hostStartButton"
+				class="primaryButton"
+			>
+				START GAME
+			</button>
+
+			<button
+				id="leaveLobbyButton"
+				class="secondaryButton"
+				style="margin-top: 10px;"
+			>
+				LEAVE LOBBY
+			</button>
+
+		</div>
+
+	</div>
+
+</section>
+
+
+<!-- ============================================================
+     EDITOR
+     ============================================================ -->
+
+<section id="editorScreen" class="screen">
+
+	<div id="editorTopBar">
+
+		<div id="editorTimer">
+			60
+		</div>
+
+		<div id="editorMemeName">
+			Loading meme...
+		</div>
+
+		<button id="changeMemeButton">
+			CHANGE MEME
+		</button>
+
+	</div>
+
+	<div id="editorMessage">
+		Make your meme before the timer runs out.
+	</div>
+
+	<div id="editor">
+
+		<div id="canvasContainer">
+			<canvas id="memeCanvas"></canvas>
+		</div>
+
+		<div id="controls">
+		</div>
+
+	</div>
+
+</section>
+
+
+<!-- ============================================================
+     SHOWCASE / VOTING
+     ============================================================ -->
+
+<section id="showcaseScreen" class="screen">
+
+	<div id="showcaseContent">
+
+		<div id="showcaseTopBar">
+			<div id="gameRoundLabel">ROUND 1/4</div>
+			<div id="showcaseTimer">15</div>
+			<div id="showcaseProgress">MEME 1/1</div>
+		</div>
+
+		<div id="showcaseMode">VOTING</div>
+
+		<img
+			id="showcaseImage"
+			alt="Meme"
+		>
+
+		<div id="showcaseCreator"></div>
+
+		<div id="voteButtons">
+			<button class="voteButton voteRed" data-vote="red" title="Vote"></button>
+			<button class="voteButton votePink" data-vote="pink" title="Vote"></button>
+			<button class="voteButton voteYellow" data-vote="yellow" title="Vote"></button>
+			<button class="voteButton voteOrange" data-vote="orange" title="Vote"></button>
+			<button class="voteButton voteGreen" data-vote="green" title="Vote"></button>
+		</div>
+
+		<div id="finalChoices">
+			<div id="finalCardA" class="finalCard">
+				<img id="finalImageA" alt="Final meme A">
+			</div>
+			<div id="finalCardB" class="finalCard">
+				<img id="finalImageB" alt="Final meme B">
+			</div>
+		</div>
+
+		<button id="finalVoteButton">VOTE FOR SELECTED MEME</button>
+
+		<div id="showcaseStatus"></div>
+
+	</div>
+
+</section>
+
+
+<script>
+
+	// ============================================================
+	// CONSTANTS
+	// ============================================================
+
+	const MAX_PLAYERS = 10;
+	const MIN_PLAYERS = 2;
+	const EDIT_LENGTH = 60000;
+	const VOTING_LENGTH = 15000;
+	const FAST_FORWARD_SECONDS = 5;
+	const WINNER_REVEAL_LENGTH = 4000;
+	const FINAL_MATCH_LENGTH = 15000;
+	const FINAL_WINNER_REVEAL_LENGTH = 5000;
+	const TOTAL_CREATIVE_ROUNDS = 4;
+
+	const VOTE_POINTS = {
+		red: -20,
+		pink: -10,
+		yellow: 5,
+		orange: 10,
+		green: 20
+	};
+
+	// ============================================================
+	// DOM
+	// ============================================================
+
+	const mainMenu = document.getElementById("mainMenu");
+	const lobbyScreen = document.getElementById("lobbyScreen");
+	const editorScreen = document.getElementById("editorScreen");
+	const showcaseScreen = document.getElementById("showcaseScreen");
+
+	const nameInput = document.getElementById("nameInput");
+	const joinCodeInput = document.getElementById("joinCodeInput");
+	const hostLobbyButton = document.getElementById("hostLobbyButton");
+	const joinLobbyButton = document.getElementById("joinLobbyButton");
+	const mainMenuStatus = document.getElementById("mainMenuStatus");
+
+	const roomCode = document.getElementById("roomCode");
+	const lobbyStatus = document.getElementById("lobbyStatus");
+	const playerList = document.getElementById("playerList");
+	const hostStartButton = document.getElementById("hostStartButton");
+	const leaveLobbyButton = document.getElementById("leaveLobbyButton");
+
+	const editorTimer = document.getElementById("editorTimer");
+	const editorCounter = document.createElement("div");
+	editorCounter.id = "editorCounter";
+	document.getElementById("editorTopBar").insertBefore(
+		editorCounter,
+		document.getElementById("editorMemeName")
+	);
+	const editorMemeName = document.getElementById("editorMemeName");
+	const editorMessage = document.getElementById("editorMessage");
+	const changeMemeButton = document.getElementById("changeMemeButton");
+	const memeCanvas = document.getElementById("memeCanvas");
+	const controls = document.getElementById("controls");
+
+	const gameRoundLabel = document.getElementById("gameRoundLabel");
+	const showcaseTimer = document.getElementById("showcaseTimer");
+	const showcaseProgress = document.getElementById("showcaseProgress");
+	const showcaseMode = document.getElementById("showcaseMode");
+	const showcaseImage = document.getElementById("showcaseImage");
+	const showcaseCreator = document.getElementById("showcaseCreator");
+	const showcaseStatus = document.getElementById("showcaseStatus");
+	const voteButtons = document.querySelectorAll(".voteButton");
+
+	const finalChoices = document.getElementById("finalChoices");
+	const finalCardA = document.getElementById("finalCardA");
+	const finalCardB = document.getElementById("finalCardB");
+	const finalImageA = document.getElementById("finalImageA");
+	const finalImageB = document.getElementById("finalImageB");
+	const finalVoteButton = document.getElementById("finalVoteButton");
+
+	const ctx = memeCanvas.getContext("2d");
+
+	// ============================================================
+	// SUPABASE CONFIG
+	// ============================================================
+
+	const SUPABASE_URL = "https://qthtfrppnleolhymrsjs.supabase.co";
+	const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_a9XHk_nl57xPzYYDnZ-oRQ_dgpln7A1";
+
+	const supabaseClient = window.supabase.createClient(
+		SUPABASE_URL,
+		SUPABASE_PUBLISHABLE_KEY
+	);
+
+	// ============================================================
+	// NETWORK STATE
+	// ============================================================
+
+	let myPeerId = null;
+	let myName = "";
+	let isHost = false;
+	let roomCodeValue = "";
+	let hostUserId = null;
+	let realtimeChannel = null;
+	let realtimeChannelReady = false;
+	let participants = [];
+	let gameStarted = false;
+
+	// ============================================================
+	// GAME STATE
+	// ============================================================
+
+	let currentPhase = "lobby";
+	let currentRoundNumber = 0;
+	let currentRoundId = null;
+	let expectedPlayerIds = [];
+	let roundResults = {};
+	let submittedIds = new Set();
+	let roundWinners = [];
+
+	let editStartTime = 0;
+	let editTimer = null;
+	let roundSubmitted = false;
+	let hostRoundTimeout = null;
+
+	let votingItems = [];
+	let votingIndex = -1;
+	let votingStartedAt = 0;
+	let votingEndAt = 0;
+	let votingTimer = null;
+	let votingVotes = {};
+	let localVoteMade = false;
+	let votingFastForwarded = false;
+
+	let winnerRevealTimer = null;
+
+	let finalTournamentItems = [];
+	let finalMatchupIndex = 0;
+	let finalMatchup = [];
+	let finalMatchupStartAt = 0;
+	let finalMatchupEndAt = 0;
+	let finalMatchupTimer = null;
+	let finalVotes = {};
+	let finalSelectedMemeId = null;
+	let finalWinner = null;
+	let finalTournamentFinished = false;
+
+	// ============================================================
+	// MEME STATE
+	// ============================================================
+
+	let memes = [];
+	let currentMeme = null;
+	let currentImage = null;
+	let textBoxes = [];
+	let draggingBox = null;
+	let dragOffsetX = 0;
+	let dragOffsetY = 0;
+	let imageLoadToken = 0;
+
+	// ============================================================
+	// SCREEN CONTROL
+	// ============================================================
+
+	function showScreen(screen) {
+		mainMenu.classList.remove("active");
+		lobbyScreen.classList.remove("active");
+		editorScreen.classList.remove("active");
+		showcaseScreen.classList.remove("active");
+		screen.classList.add("active");
+	}
+
+	function setMainMenuStatus(text) {
+		mainMenuStatus.innerText = text;
+	}
+
+	// ============================================================
+	// MEME LOADING
+	// ============================================================
+
+	async function loadMemes() {
+		try {
+			const response = await fetch(
+				"https://api.imgflip.com/get_memes?type=image"
+			);
+			const data = await response.json();
+
+			if (!data.success) {
+				throw new Error("Failed to load memes.");
+			}
+
+			memes = data.data.memes;
+			console.log("Loaded memes:", memes.length);
+		} catch (error) {
+			console.error(error);
+			setMainMenuStatus("Failed to load memes.");
+		}
+	}
+
+	function getRandomMeme() {
+		if (memes.length === 0) {
+			return null;
+		}
+
+		return memes[Math.floor(Math.random() * memes.length)];
+	}
+
+	function generateRoomCode() {
+		const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+		let code = "";
+
+		for (let i = 0; i < 6; i++) {
+			code += characters[Math.floor(Math.random() * characters.length)];
+		}
+
+		return code;
+	}
+
+	function validateName() {
+		const name = nameInput.value.trim().slice(0, 20);
+
+		if (name === "") {
+			setMainMenuStatus("Enter your name first.");
+			return false;
+		}
+
+		myName = name;
+		return true;
+	}
+
+	// ============================================================
+	// AUTH
+	// ============================================================
+
+	async function ensureSupabaseUser() {
+		const existing = await supabaseClient.auth.getUser();
+
+		if (existing.data && existing.data.user) {
+			myPeerId = existing.data.user.id;
+			return true;
+		}
+
+		const result = await supabaseClient.auth.signInAnonymously();
+
+		if (result.error) {
+			console.error("Anonymous sign-in failed:", result.error);
+			setMainMenuStatus("Supabase anonymous sign-in failed.");
+			return false;
+		}
+
+		myPeerId = result.data.user.id;
+		return true;
+	}
+
+	// ============================================================
+	// REALTIME
+	// ============================================================
+
+	async function createRealtimeChannel() {
+		if (realtimeChannel) {
+			try {
+				await supabaseClient.removeChannel(realtimeChannel);
+			} catch (error) {
+				console.error(error);
+			}
+		}
+
+		realtimeChannelReady = false;
+		realtimeChannel = supabaseClient.channel(
+			"makeitmeme:" + roomCodeValue,
+			{
+				config: {
+					presence: {
+						key: myPeerId
+					}
+				}
+			}
+		);
+
+		realtimeChannel.on(
+			"broadcast",
+			{ event: "game" },
+			function(payload) {
+				if (payload && payload.payload) {
+					handleRealtimeMessage(payload.payload);
+				}
+			}
+		);
+
+		realtimeChannel.on(
+			"presence",
+			{ event: "sync" },
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
+
+		realtimeChannel.on(
+			"presence",
+			{ event: "join" },
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
+
+		realtimeChannel.on(
+			"presence",
+			{ event: "leave" },
+			function() {
+				updateParticipantsFromPresence();
+			}
+		);
+
+		const statusResult = await new Promise(function(resolve) {
+			realtimeChannel.subscribe(function(status, error) {
+				console.log("Realtime subscription status:", status, error || "");
+
+				if (
+					status === "SUBSCRIBED" ||
+					status === "CHANNEL_ERROR" ||
+					status === "TIMED_OUT" ||
+					status === "CLOSED"
+				) {
+					resolve({ status: status, error: error });
+				}
+			});
+		});
+
+		if (statusResult.status !== "SUBSCRIBED") {
+			console.error(
+				"Realtime subscription failed:",
+				statusResult.status,
+				statusResult.error
+			);
+			setMainMenuStatus(
+				"Realtime connection failed: " + statusResult.status
+			);
+			return false;
+		}
+
+		realtimeChannelReady = true;
+
+		const trackResult = await realtimeChannel.track({
+			user_id: myPeerId,
+			name: myName,
+			is_host: isHost,
+			joined_at: new Date().toISOString()
+		});
+
+		if (trackResult && trackResult.error) {
+			console.error("Presence track failed:", trackResult.error);
+		}
+
+		updateParticipantsFromPresence();
+		return true;
+	}
+
+	function updateParticipantsFromPresence() {
+		if (!realtimeChannel) {
+			return;
+		}
+
+		const state = realtimeChannel.presenceState();
+		const found = [];
+		const seen = new Set();
+
+		for (const key of Object.keys(state)) {
+			const states = state[key] || [];
+
+			for (const presence of states) {
+				const id = presence.user_id || key;
+
+				if (seen.has(id)) {
+					continue;
+				}
+
+				seen.add(id);
+				found.push({
+					id: id,
+					name: String(presence.name || "Player").slice(0, 20),
+					isHost: Boolean(presence.is_host)
+				});
+			}
+		}
+
+		found.sort(function(a, b) {
+			if (a.isHost !== b.isHost) {
+				return a.isHost ? -1 : 1;
+			}
+			return a.name.localeCompare(b.name);
+		});
+
+		participants = found.slice(0, MAX_PLAYERS);
+
+		const host = participants.find(function(player) {
+			return player.isHost;
+		});
+
+		if (host) {
+			hostUserId = host.id;
+		}
+
+		updatePlayerList();
+		updateEditorCounter();
+	}
+
+	async function broadcastMessage(message) {
+		if (!realtimeChannel || !realtimeChannelReady) {
+			return false;
+		}
+
+		try {
+			const result = await realtimeChannel.send({
+				type: "broadcast",
+				event: "game",
+				payload: message
+			});
+
+			if (result && result.error) {
+				console.error("Broadcast error:", result.error);
+				return false;
+			}
+
+			return true;
+		} catch (error) {
+			console.error("Broadcast error:", error);
+			return false;
+		}
+	}
+
+	// ============================================================
+	// REALTIME MESSAGE HANDLER
+	// ============================================================
+
+	function handleRealtimeMessage(message) {
+		if (!message || !message.type) {
+			return;
+		}
+
+		if (message.senderId === myPeerId) {
+			return;
+		}
+
+		switch (message.type) {
+			case "gameStart":
+				if (!isHost) {
+					startEditingRound(
+						message.roundNumber,
+						message.startAt,
+						message.roundId,
+						message.playerIds
+					);
+				}
+				break;
+
+			case "roundProgress":
+				submittedIds = new Set(message.submittedIds || []);
+				updateEditorCounter();
+				break;
+
+			case "roundResult":
+				if (isHost && gameStarted) {
+					handleRoundResult(message);
+				}
+				break;
+
+			case "startVoting":
+				startVotingPhase(
+					message.items,
+					message.startAt,
+					message.roundNumber,
+					message.roundId
+				);
+				break;
+
+			case "votingFastForward":
+				if (
+					currentPhase === "voting" &&
+					votingIndex === message.index
+				) {
+					votingEndAt = Math.min(
+						votingEndAt,
+					message.endAt
+					);
+					votingFastForwarded = true;
+				}
+				break;
+
+			case "votingAdvance":
+				startVotingItem(
+					message.index,
+					message.startAt
+				);
+				break;
+
+			case "vote":
+				if (isHost && gameStarted) {
+					handleRemoteVote(message);
+				}
+				break;
+
+			case "roundWinner":
+				showRoundWinner(
+					message.item,
+					message.roundNumber,
+					message.nextAt,
+					message.isFinal
+				);
+				break;
+
+			case "finalMatchup":
+				startFinalMatchup(
+					message.items,
+					message.matchupIndex,
+					message.startAt
+				);
+				break;
+
+			case "finalFastForward":
+				if (currentPhase === "final") {
+					finalMatchupEndAt = Math.min(
+						finalMatchupEndAt,
+						message.endAt
+					);
+				}
+				break;
+
+			case "finalVote":
+				if (isHost && gameStarted) {
+					handleRemoteFinalVote(message);
+				}
+				break;
+
+			case "returnLobby":
+				returnToLobby(false, message.message || "Waiting for the next game...");
+				break;
+
+			case "hostLeft":
+				if (!isHost) {
+					handleHostDisconnected();
+				}
+				break;
+		}
+	}
+
+	// ============================================================
+	// LOBBY
+	// ============================================================
+
+	async function hostLobby() {
+		if (!validateName()) {
+			return;
+		}
+
+		if (memes.length === 0) {
+			setMainMenuStatus("Memes are still loading...");
+			return;
+		}
+
+		hostLobbyButton.disabled = true;
+		joinLobbyButton.disabled = true;
+		setMainMenuStatus("Connecting to Supabase...");
+
+		try {
+			if (!myPeerId && !(await ensureSupabaseUser())) {
+				hostLobbyButton.disabled = false;
+				joinLobbyButton.disabled = false;
+				return;
+			}
+
+			isHost = true;
+			let roomCreated = false;
+
+			for (let attempt = 0; attempt < 5; attempt++) {
+				roomCodeValue = generateRoomCode();
+
+				const result = await supabaseClient
+					.from("rooms")
+					.insert({
+						room_code: roomCodeValue,
+						host_id: myPeerId,
+						status: "lobby"
+					});
+
+				if (!result.error) {
+					roomCreated = true;
+					break;
+				}
+
+				console.warn("Room creation failed:", result.error);
+			}
+
+			if (!roomCreated) {
+				throw new Error("Could not create the lobby.");
+			}
+
+			if (!(await createRealtimeChannel())) {
+				await deleteRoom();
+				throw new Error("Could not connect to the lobby.");
+			}
+
+			roomCode.innerText = roomCodeValue;
+			lobbyStatus.innerText = "Waiting for players...";
+			showScreen(lobbyScreen);
+		} catch (error) {
+			console.error("Host lobby failed:", error);
+			setMainMenuStatus(error.message || "Could not create the lobby.");
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+			isHost = false;
+		}
+	}
+
+	async function joinLobby() {
+		if (!validateName()) {
+			return;
+		}
+
+		const code = joinCodeInput.value.trim().toUpperCase();
+
+		if (!/^[A-Z0-9]{6}$/.test(code)) {
+			setMainMenuStatus("Enter a valid 6-character room code.");
+			return;
+		}
+
+		if (!myPeerId && !(await ensureSupabaseUser())) {
+			return;
+		}
+
+		hostLobbyButton.disabled = true;
+		joinLobbyButton.disabled = true;
+		setMainMenuStatus("Checking room...");
+
+		try {
+			const result = await supabaseClient
+				.from("rooms")
+				.select("room_code,host_id,status")
+				.eq("room_code", code)
+				.maybeSingle();
+
+			if (result.error || !result.data) {
+				throw new Error("That lobby does not exist.");
+			}
+
+			if (result.data.status !== "lobby") {
+				throw new Error("That game has already started.");
+			}
+
+			isHost = false;
+			hostUserId = result.data.host_id;
+			roomCodeValue = code;
+
+			if (!(await createRealtimeChannel())) {
+				throw new Error("Could not connect to the lobby.");
+			}
+
+			roomCode.innerText = roomCodeValue;
+			lobbyStatus.innerText = "Waiting for host...";
+			showScreen(lobbyScreen);
+		} catch (error) {
+			console.error("Join lobby failed:", error);
+			setMainMenuStatus(error.message || "Could not join the lobby.");
+			hostLobbyButton.disabled = false;
+			joinLobbyButton.disabled = false;
+		}
+	}
+
+	function isValidLobbyPlayerCount(count) {
+		return count >= MIN_PLAYERS && count <= MAX_PLAYERS && count % 2 === 0;
+	}
+
+	function updatePlayerList() {
+		playerList.innerHTML = "";
+
+		participants.forEach(function(player) {
+			const entry = document.createElement("div");
+			entry.className = "playerEntry";
+			entry.innerText = player.name;
+
+			if (player.isHost) {
+				const hostTag = document.createElement("span");
+				hostTag.className = "hostTag";
+				hostTag.innerText = "HOST";
+				entry.appendChild(hostTag);
+			}
+
+			if (player.id === myPeerId) {
+				const youTag = document.createElement("span");
+				youTag.style.color = "#aaa";
+				youTag.style.fontSize = "13px";
+				youTag.style.marginLeft = "8px";
+				youTag.innerText = "YOU";
+				entry.appendChild(youTag);
+			}
+
+			playerList.appendChild(entry);
+		});
+
+		const count = participants.length;
+		const canStart = isHost && isValidLobbyPlayerCount(count) && !gameStarted;
+		hostStartButton.disabled = !canStart;
+
+		if (isHost && !gameStarted) {
+			if (count < MIN_PLAYERS) {
+				lobbyStatus.innerText = "Need at least 2 players.";
+			} else if (count > MAX_PLAYERS) {
+				lobbyStatus.innerText = "Maximum is 10 players.";
+			} else if (count % 2 !== 0) {
+				lobbyStatus.innerText = "Need an even number of players to start.";
+			} else {
+				lobbyStatus.innerText = count + " players ready. You can start.";
+			}
+		}
+	}
+
+	// ============================================================
+	// START GAME
+	// ============================================================
+
+	async function hostStartGame() {
+		if (!isHost || gameStarted) {
+			return;
+		}
+
+		const count = participants.length;
+
+		if (!isValidLobbyPlayerCount(count)) {
+			lobbyStatus.innerText = "The game needs an even number of players from 2 to 10.";
+			return;
+		}
+
+		if (memes.length === 0) {
+			lobbyStatus.innerText = "Memes are still loading.";
+			return;
+		}
+
+		expectedPlayerIds = participants.map(function(player) {
+			return player.id;
+		});
+
+		currentRoundNumber = 1;
+		currentRoundId = crypto.randomUUID();
+		roundWinners = [];
+		gameStarted = true;
+		currentPhase = "editing";
+
+		const roomUpdate = await supabaseClient
+			.from("rooms")
+			.update({ status: "playing" })
+			.eq("room_code", roomCodeValue)
+			.eq("host_id", myPeerId);
+
+		if (roomUpdate.error) {
+			console.error("Could not mark room as playing:", roomUpdate.error);
+			gameStarted = false;
+			currentPhase = "lobby";
+			lobbyStatus.innerText = "Could not start the game.";
+			return;
+		}
+
+		const startAt = Date.now() + 1500;
+
+		await broadcastMessage({
+			type: "gameStart",
+			senderId: myPeerId,
+			roundNumber: 1,
+			startAt: startAt,
+			roundId: currentRoundId,
+			playerIds: expectedPlayerIds
+		});
+
+		startEditingRound(
+			1,
+			startAt,
+			currentRoundId,
+			expectedPlayerIds
+		);
+
+		armHostRoundTimeout(startAt);
+	}
+
+	// ============================================================
+	// EDITING ROUND
+	// ============================================================
+
+	function startEditingRound(roundNumber, startAt, roundId, playerIds) {
+		currentPhase = "editing";
+		currentRoundNumber = roundNumber;
+		currentRoundId = roundId;
+		expectedPlayerIds = playerIds || expectedPlayerIds;
+		roundSubmitted = false;
+	submittedIds = new Set();
+		roundResults = {};
+		votingItems = [];
+		votingVotes = {};
+		localVoteMade = false;
+		currentMeme = getRandomMeme();
+
+		createControls();
+		loadMemeImage();
+		showScreen(editorScreen);
+
+		editorMessage.innerText = "Make your meme before the timer runs out.";
+		gameRoundLabel.innerText = "ROUND " + roundNumber + "/4";
+		startEditingTimer(startAt);
+	}
+
+	function startEditingTimer(startAt) {
+		stopEditingTimer();
+		editStartTime = startAt;
+		updateEditorTimer();
+
+		editTimer = setInterval(function() {
+			updateEditorTimer();
+		}, 100);
+	}
+
+	function stopEditingTimer() {
+		if (editTimer) {
+			clearInterval(editTimer);
+			editTimer = null;
+		}
+	}
+
+	function updateEditorTimer() {
+		const remaining = Math.max(0, editStartTime + EDIT_LENGTH - Date.now());
+		const seconds = Math.ceil(remaining / 1000);
+		editorTimer.innerText = String(seconds);
+		updateEditorCounter();
+
+		if (remaining <= 0 && !roundSubmitted) {
+			roundSubmitted = true;
+			stopEditingTimer();
+			editorMessage.innerText = "Time's up! Saving your meme...";
+			submitRoundMeme();
+		}
+	}
+
+	function updateEditorCounter() {
+		const total = expectedPlayerIds.length || participants.length || 0;
+		editorCounter.innerText = submittedIds.size + "/" + total;
+		editorCounter.title = "Memes made";
+	}
+
+	// ============================================================
+	// SUBMIT MEME
+	// ============================================================
+
+	async function submitRoundMeme() {
+		if (!gameStarted || currentPhase !== "editing") {
+			return;
+		}
+
+		if (submittedIds.has(myPeerId)) {
+			return;
+		}
+
+		const image = createMemeDataURL();
+
+		if (!image) {
+			editorMessage.innerText = "Could not save your meme.";
+			if (isHost) {
+				handleRoundSubmission({
+					senderId: myPeerId,
+					image: null,
+					name: myName
+				});
+			}
+			return;
+		}
+
+		const upload = await uploadMemeToSupabase(image);
+
+		if (!upload) {
+			editorMessage.innerText = "Could not upload your meme.";
+			if (isHost) {
+				handleRoundSubmission({
+					senderId: myPeerId,
+					image: null,
+					name: myName
+				});
+			}
+			return;
+		}
+
+		await supabaseClient
+			.from("submissions")
+			.insert({
+				room_code: roomCodeValue,
+				round_id: currentRoundId,
+				player_id: myPeerId,
+				player_name: myName,
+				image_path: upload.path,
+				image_url: upload.url
+			});
+
+		editorMessage.innerText = "Your meme has been saved.";
+
+		const result = {
+			senderId: myPeerId,
+			name: myName,
+			image: upload.url
+		};
+
+		if (isHost) {
+			handleRoundSubmission(result);
+		} else {
+			await broadcastMessage({
+				type: "roundResult",
+				senderId: myPeerId,
+				name: myName,
+				image: upload.url,
+				roundId: currentRoundId
+			});
+		}
+	}
+
+	function handleRoundResult(message) {
+		if (message.roundId && message.roundId !== currentRoundId) {
+			return;
+		}
+
+		handleRoundSubmission(message);
+	}
+
+	function handleRoundSubmission(message) {
+		if (!expectedPlayerIds.includes(message.senderId)) {
+			return;
+		}
+
+		if (submittedIds.has(message.senderId)) {
+			return;
+		}
+
+		submittedIds.add(message.senderId);
+		roundResults[message.senderId] = {
+			peerId: message.senderId,
+			name: message.name || getParticipantName(message.senderId),
+			image: message.image
+		};
+
+		updateEditorCounter();
+
+		if (isHost) {
+			broadcastMessage({
+				type: "roundProgress",
+				senderId: myPeerId,
+				submittedIds: Array.from(submittedIds)
+			});
+
+			if (submittedIds.size >= expectedPlayerIds.length) {
+				startVotingFromSubmissions();
+			}
+		}
+	}
+
+	function startVotingFromSubmissions(force = false) {
+		if (!isHost || currentPhase !== "editing") {
+			return;
+		}
+
+		if (!force && submittedIds.size < expectedPlayerIds.length) {
+			return;
+		}
+
+		clearTimeout(hostRoundTimeout);
+		hostRoundTimeout = null;
+		stopEditingTimer();
+
+		const items = expectedPlayerIds
+			.map(function(id) {
+				return roundResults[id];
+			})
+			.filter(function(item) {
+				return item && item.image;
+			})
+			.map(function(item, index) {
+				return {
+					id: currentRoundId + ":" + item.peerId + ":" + index,
+					peerId: item.peerId,
+					name: item.name,
+					creatorId: item.peerId,
+					image: item.image
+				};
+			});
+
+		if (items.length === 0) {
+			return;
+		}
+
+		const startAt = Date.now() + 1000;
+		broadcastMessage({
+			type: "startVoting",
+			senderId: myPeerId,
+			items: items,
+			startAt: startAt,
+			roundNumber: currentRoundNumber,
+			roundId: currentRoundId
+		});
+
+		startVotingPhase(
+			items,
+			startAt,
+			currentRoundNumber,
+			currentRoundId
+		);
+	}
+
+	// Hard stop after the editing window, then vote with whatever was submitted.
+	function armHostRoundTimeout(startAt) {
+		clearTimeout(hostRoundTimeout);
+		hostRoundTimeout = setTimeout(function() {
+			startVotingFromSubmissions(true);
+		}, Math.max(0, startAt + EDIT_LENGTH + 3000 - Date.now()));
+	}
+
+	// ============================================================
+	// VOTING PHASES
+	// ============================================================
+
+	function startVotingPhase(items, startAt, roundNumber, roundId) {
+		stopEditingTimer();
+		currentPhase = "voting";
+		currentRoundNumber = roundNumber;
+		currentRoundId = roundId;
+		votingItems = items || [];
+		votingIndex = -1;
+		votingVotes = {};
+		localVoteMade = false;
+		votingFastForwarded = false;
+		votingStartedAt = startAt;
+		votingEndAt = startAt + VOTING_LENGTH;
+
+		showcaseMode.innerText = "VOTING";
+		showcaseImage.style.display = "block";
+		showcaseCreator.style.display = "block";
+		finalChoices.style.display = "none";
+		finalVoteButton.style.display = "none";
+		voteButtons.forEach(function(button) {
+			button.style.display = "block";
+		});
+
+		showScreen(showcaseScreen);
+		startVotingTimer();
+	}
+
+	function startVotingTimer() {
+		stopVotingTimer();
+		updateVotingDisplay();
+		votingTimer = setInterval(updateVotingDisplay, 100);
+	}
+
+	function stopVotingTimer() {
+		if (votingTimer) {
+			clearInterval(votingTimer);
+			votingTimer = null;
+		}
+	}
+
+	function updateVotingDisplay() {
+		if (votingItems.length === 0) {
+			return;
+		}
+
+		if (votingIndex < 0) {
+			if (Date.now() >= votingStartedAt) {
+				startVotingItem(0, votingStartedAt);
+			}
+			return;
+		}
+
+		const remaining = Math.max(0, votingEndAt - Date.now());
+		showcaseTimer.innerText = String(Math.ceil(remaining / 1000));
+
+		if (remaining <= 0) {
+			if (isHost) {
+				advanceVotingItemHost();
+			} else {
+				showcaseTimer.innerText = "0";
+			}
+		}
+	}
+
+	function startVotingItem(index, startAt) {
+		if (index < 0 || index >= votingItems.length) {
+			return;
+		}
+
+		votingIndex = index;
+		votingStartedAt = startAt;
+		votingEndAt = startAt + VOTING_LENGTH;
+		localVoteMade = false;
+		votingFastForwarded = false;
+
+		const item = votingItems[index];
+		showcaseImage.src = item.image;
+		showcaseCreator.innerText = "Created by " + item.name;
+		showcaseProgress.innerText = "MEME " + (index + 1) + "/" + votingItems.length;
+		gameRoundLabel.innerText = "ROUND " + currentRoundNumber + "/4";
+		showcaseTimer.innerText = String(Math.ceil(Math.max(0, votingEndAt - Date.now()) / 1000));
+		showcaseStatus.innerText = "";
+		clearVoteSelection();
+
+		const canVote = item.creatorId !== myPeerId;
+		voteButtons.forEach(function(button) {
+			button.disabled = !canVote;
+		});
+
+		if (!canVote) {
+			showcaseStatus.innerText = "You cannot vote for your own meme.";
+		}
+
+		if (votingIndex === 0 && Date.now() < startAt) {
+			// The normal interval will wait for the synchronized start time.
+		}
+	}
+
+	function advanceVotingItemHost() {
+		if (votingIndex + 1 < votingItems.length) {
+			const startAt = Date.now() + 150;
+			const nextIndex = votingIndex + 1;
+
+			broadcastMessage({
+				type: "votingAdvance",
+				senderId: myPeerId,
+				index: nextIndex,
+				startAt: startAt
+			});
+
+			startVotingItem(nextIndex, startAt);
+			return;
+		}
+
+		finishVotingPhase();
+	}
+
+	async function submitVote(vote) {
+		if (
+			currentPhase !== "voting" ||
+			currentRoundNumber < 1 ||
+			votingIndex < 0 ||
+			votingIndex >= votingItems.length ||
+			localVoteMade
+		) {
+			return;
+		}
+
+		const item = votingItems[votingIndex];
+
+		if (item.creatorId === myPeerId) {
+			return;
+		}
+
+		localVoteMade = true;
+		votingVotes[item.id] ||= {};
+		votingVotes[item.id][myPeerId] = vote;
+
+		voteButtons.forEach(function(button) {
+			button.classList.toggle(
+				"selected",
+				button.dataset.vote === vote
+			);
+		});
+
+		await supabaseClient
+			.from("votes")
+			.upsert(
+				{
+					round_id: currentRoundId,
+					voter_id: myPeerId,
+					meme_id: item.id,
+					vote: vote
+				},
+				{ onConflict: "round_id,voter_id,meme_id" }
+			);
+
+		const message = {
+			type: "vote",
+			senderId: myPeerId,
+			roundId: currentRoundId,
+			index: votingIndex,
+			memeId: item.id,
+			vote: vote
+		};
+
+		if (isHost) {
+			handleRemoteVote(message);
+		} else {
+			await broadcastMessage(message);
+		}
+	}
+
+	async function submitVote(vote) {
+		if (
+			currentPhase !== "voting" ||
+			currentRoundNumber < 1 ||
+			votingIndex < 0 ||
+			votingIndex >= votingItems.length ||
+			localVoteMade
+		) {
+			return;
+		}
+
+		const item = votingItems[votingIndex];
+
+		if (item.creatorId === myPeerId) {
+			return;
+		}
+
+		localVoteMade = true;
+		votingVotes[item.id] ||= {};
+		votingVotes[item.id][myPeerId] = vote;
+
+		voteButtons.forEach(function(button) {
+			button.classList.toggle(
+				"selected",
+				button.dataset.vote === vote
+			);
+		});
+
+		await supabaseClient
+			.from("votes")
+			.upsert(
+				{
+					round_id: currentRoundId,
+					voter_id: myPeerId,
+					meme_id: item.id,
+					vote: vote
+				},
+				{ onConflict: "round_id,voter_id,meme_id" }
+			);
+
+		const message = {
+			type: "vote",
+			senderId: myPeerId,
+			roundId: currentRoundId,
+			index: votingIndex,
+			memeId: item.id,
+			vote: vote
+		};
+
+		if (isHost) {
+			handleRemoteVote(message);
+		} else {
+			await broadcastMessage(message);
+		}
+	}
+
+	function handleRemoteVote(message) {
+		if (message.roundId !== currentRoundId) {
+			return;
+		}
+
+		if (message.index !== votingIndex) {
+			return;
+		}
+
+		const item = votingItems[votingIndex];
+
+		if (!item || item.id !== message.memeId) {
+			return;
+		}
+
+		if (message.senderId === item.creatorId) {
+			return;
+		}
+
+		votingVotes[item.id] ||= {};
+		votingVotes[item.id][message.senderId] = message.vote;
+
+		if (isHost) {
+			const eligibleCount = countEligibleVoters(item);
+			const votesReceived = Object.keys(votingVotes[item.id]).length;
+
+			if (
+				votesReceived >= eligibleCount &&
+				Date.now() < votingEndAt - FAST_FORWARD_SECONDS * 1000
+			) {
+				const endAt = Date.now() + FAST_FORWARD_SECONDS * 1000;
+				votingEndAt = Math.min(
+					votingEndAt,
+					endAt
+				);
+				votingFastForwarded = true;
+				broadcastMessage({
+					type: "votingFastForward",
+					senderId: myPeerId,
+					index: votingIndex,
+					endAt: endAt
+				});
+			}
+		}
+	}
+
+	function countEligibleVoters(item) {
+		return expectedPlayerIds.filter(function(id) {
+			return id !== item.creatorId;
+		}).length;
+	}
+
+	function advanceVotingItem() {
+		if (votingIndex < 0) {
+			return;
+		}
+
+		if (votingIndex + 1 < votingItems.length) {
+			beginVotingItem(votingIndex + 1);
+			return;
+		}
+
+		finishVotingPhase();
+	}
+
+	function finishVotingPhase() {
+		if (currentPhase !== "voting") {
+			return;
+		}
+
+		stopVotingTimer();
+
+		if (!isHost) {
+			return;
+		}
+
+		let winningItem = null;
+		let bestScore = -Infinity;
+		let tiedItems = [];
+
+		votingItems.forEach(function(item) {
+			const votes = votingVotes[item.id] || {};
+			let score = 0;
+
+			Object.values(votes).forEach(function(vote) {
+				score += VOTE_POINTS[vote] || 0;
+			});
+
+			if (score > bestScore) {
+				bestScore = score;
+				tiedItems = [item];
+			} else if (score === bestScore) {
+				tiedItems.push(item);
+			}
+		});
+
+		if (tiedItems.length > 0) {
+			winningItem = tiedItems[
+				Math.floor(Math.random() * tiedItems.length)
+			];
+		}
+
+		if (!winningItem) {
+			return;
+		}
+
+		if (currentRoundNumber <= TOTAL_CREATIVE_ROUNDS) {
+			roundWinners.push(winningItem);
+		}
+
+		const nextAt = Date.now() + WINNER_REVEAL_LENGTH;
+		broadcastMessage({
+			type: "roundWinner",
+			senderId: myPeerId,
+			item: winningItem,
+			roundNumber: currentRoundNumber,
+			nextAt: nextAt,
+			isFinal: false
+		});
+
+		showRoundWinner(winningItem, currentRoundNumber, nextAt, false);
+	}
+
+	function showRoundWinner(item, roundNumber, nextAt, isFinal) {
+		stopVotingTimer();
+		currentPhase = "winner";
+		showcaseMode.innerText = isFinal ? "CHAMPION" : "ROUND " + roundNumber + " WINNER";
+		showcaseImage.style.display = "block";
+		showcaseImage.src = item.image;
+		showcaseCreator.style.display = "block";
+		showcaseCreator.innerText = "Created by " + item.name;
+		voteButtons.forEach(function(button) {
+			button.style.display = "none";
+			button.disabled = true;
+		});
+		finalChoices.style.display = "none";
+		finalVoteButton.style.display = "none";
+		showcaseProgress.innerText = isFinal ? "FINAL RESULT" : "WINNER";
+		showcaseTimer.innerText = String(Math.ceil(Math.max(0, nextAt - Date.now()) / 1000));
+		showcaseStatus.innerText = "";
+
+		if (winnerRevealTimer) {
+			clearInterval(winnerRevealTimer);
+		}
+
+		winnerRevealTimer = setInterval(function() {
+			const remaining = Math.max(0, nextAt - Date.now());
+			showcaseTimer.innerText = String(Math.ceil(remaining / 1000));
+
+			if (remaining <= 0) {
+				clearInterval(winnerRevealTimer);
+				winnerRevealTimer = null;
+
+				if (isFinal) {
+					if (isHost) {
+						finishGameToLobby();
+					}
+				} else if (roundNumber < TOTAL_CREATIVE_ROUNDS) {
+					if (isHost) {
+						beginNextCreativeRound();
+					}
+				} else {
+					if (isHost) {
+						beginFinalTournament();
+					}
+				}
+			}
+		}, 100);
+	}
+
+	function beginNextCreativeRound() {
+		currentRoundNumber++;
+		currentRoundId = crypto.randomUUID();
+		currentPhase = "editing";
+		submittedIds = new Set();
+		roundResults = {};
+		const startAt = Date.now() + 1000;
+
+		broadcastMessage({
+			type: "gameStart",
+			senderId: myPeerId,
+			roundNumber: currentRoundNumber,
+			startAt: startAt,
+			roundId: currentRoundId,
+			playerIds: expectedPlayerIds
+		});
+
+		startEditingRound(
+			currentRoundNumber,
+			startAt,
+			currentRoundId,
+			expectedPlayerIds
+		);
+	}
+
+	// ============================================================
+	// FINAL TOURNAMENT
+	// ============================================================
+
+	function beginFinalTournament() {
+		if (!isHost || roundWinners.length < 4) {
+			return;
+		}
+
+		finalTournamentFinished = false;
+		finalWinner = null;
+		finalTournamentItems = roundWinners
+			.map(function(item) {
+				return { ...item };
+			})
+			.sort(function() {
+				return Math.random() - 0.5;
+			});
+		finalMatchupIndex = 0;
+		currentPhase = "final";
+		currentRoundId = crypto.randomUUID();
+
+		broadcastNextFinalMatchup();
+	}
+
+	function broadcastNextFinalMatchup() {
+		let items;
+
+		if (finalMatchupIndex === 0) {
+			items = [
+				finalTournamentItems[0],
+				finalTournamentItems[1]
+			];
+		} else if (finalMatchupIndex === 1) {
+			items = [
+				finalTournamentItems[2],
+				finalTournamentItems[3]
+			];
+		} else {
+			items = [
+				finalTournamentItems[0],
+				finalTournamentItems[1]
+			];
+		}
+
+		const startAt = Date.now() + 1000;
+		broadcastMessage({
+			type: "finalMatchup",
+			senderId: myPeerId,
+			items: items,
+			matchupIndex: finalMatchupIndex,
+			startAt: startAt
+		});
+
+		startFinalMatchup(items, finalMatchupIndex, startAt);
+	}
+
+	function startFinalMatchup(items, matchupIndex, startAt) {
+		currentPhase = "final";
+		finalMatchup = items || [];
+		finalMatchupIndex = matchupIndex;
+		finalMatchupStartAt = startAt;
+		finalMatchupEndAt = startAt + FINAL_MATCH_LENGTH;
+		finalVotes = {};
+		finalSelectedMemeId = null;
+
+		gameRoundLabel.innerText = "ROUND 5/5";
+		showcaseMode.innerText = "FINAL TOURNAMENT";
+		showcaseProgress.innerText = "MATCH " + (matchupIndex + 1);
+		showcaseTimer.innerText = String(Math.ceil(Math.max(0, finalMatchupEndAt - Date.now()) / 1000));
+		showcaseImage.style.display = "none";
+		showcaseCreator.style.display = "none";
+		voteButtons.forEach(function(button) {
+			button.style.display = "none";
+			button.disabled = true;
+		});
+		showcaseStatus.innerText = "Choose a meme.";
+
+		finalChoices.style.display = "flex";
+		finalVoteButton.style.display = "block";
+		finalCardA.classList.remove("selected");
+		finalCardB.classList.remove("selected");
+		finalImageA.src = finalMatchup[0].image;
+		finalImageB.src = finalMatchup[1].image;
+
+		const blocksYourVote = finalMatchup.some(function(item) {
+			return item.creatorId === myPeerId;
+		});
+
+		finalVoteButton.disabled = blocksYourVote;
+
+		if (blocksYourVote) {
+			showcaseStatus.innerText = "You cannot vote while your meme is competing.";
+		}
+
+		showScreen(showcaseScreen);
+		startFinalMatchupTimer();
+	}
+
+	function startFinalMatchupTimer() {
+		stopFinalMatchupTimer();
+		updateFinalMatchupDisplay();
+		finalMatchupTimer = setInterval(updateFinalMatchupDisplay, 100);
+	}
+
+	function stopFinalMatchupTimer() {
+		if (finalMatchupTimer) {
+			clearInterval(finalMatchupTimer);
+			finalMatchupTimer = null;
+		}
+	}
+
+	function updateFinalMatchupDisplay() {
+		const remaining = Math.max(0, finalMatchupEndAt - Date.now());
+		showcaseTimer.innerText = String(Math.ceil(remaining / 1000));
+
+		if (remaining <= 0) {
+			finishFinalMatchup();
+		}
+	}
+
+	function selectFinalMeme(index) {
+		if (currentPhase !== "final" || finalMatchup.length !== 2) {
+			return;
+		}
+
+		if (finalMatchup.some(function(item) {
+			return item.creatorId === myPeerId;
+		})) {
+			return;
+		}
+
+		finalSelectedMemeId = finalMatchup[index].id;
+		finalCardA.classList.toggle("selected", index === 0);
+		finalCardB.classList.toggle("selected", index === 1);
+		finalVoteButton.disabled = false;
+	}
+
+	async function submitFinalVote() {
+		if (
+			currentPhase !== "final" ||
+			!finalSelectedMemeId ||
+			finalVotes[myPeerId]
+		) {
+			return;
+		}
+
+		if (finalMatchup.some(function(item) {
+			return item.creatorId === myPeerId;
+		})) {
+			return;
+		}
+
+		finalVotes[myPeerId] = finalSelectedMemeId;
+		finalVoteButton.disabled = true;
+		showcaseStatus.innerText = "Vote locked in.";
+
+		await supabaseClient
+			.from("votes")
+			.upsert(
+				{
+					round_id: currentRoundId,
+					voter_id: myPeerId,
+					meme_id: finalSelectedMemeId,
+					vote: "final"
+				},
+				{ onConflict: "round_id,voter_id,meme_id" }
+			);
+
+		const message = {
+			type: "finalVote",
+			senderId: myPeerId,
+			memeId: finalSelectedMemeId
+		};
+
+		if (isHost) {
+			handleRemoteFinalVote(message);
+		} else {
+			await broadcastMessage(message);
+		}
+	}
+
+	function handleRemoteFinalVote(message) {
+		if (currentPhase !== "final") {
+			return;
+		}
+
+		if (!finalMatchup.some(function(item) {
+			return item.id === message.memeId;
+		})) {
+			return;
+		}
+
+		if (finalMatchup.some(function(item) {
+			return item.creatorId === message.senderId;
+		})) {
+			return;
+		}
+
+		finalVotes[message.senderId] = message.memeId;
+
+		const eligibleCount = expectedPlayerIds.filter(function(id) {
+			return !finalMatchup.some(function(item) {
+				return item.creatorId === id;
+			});
+		}).length;
+
+		if (
+			Object.keys(finalVotes).length >= eligibleCount &&
+			Date.now() < finalMatchupEndAt - FAST_FORWARD_SECONDS * 1000
+		) {
+			const endAt = Date.now() + FAST_FORWARD_SECONDS * 1000;
+			finalMatchupEndAt = Math.min(finalMatchupEndAt, endAt);
+			broadcastMessage({
+				type: "finalFastForward",
+				senderId: myPeerId,
+				endAt: endAt
+			});
+		}
+	}
+
+	function finishFinalMatchup() {
+		if (currentPhase !== "final") {
+			return;
+		}
+
+		stopFinalMatchupTimer();
+
+		if (!isHost) {
+			return;
+		}
+
+		const counts = {};
+		finalMatchup.forEach(function(item) {
+			counts[item.id] = 0;
+		});
+
+		Object.values(finalVotes).forEach(function(memeId) {
+			if (counts[memeId] !== undefined) {
+				counts[memeId]++;
+			}
+		});
+
+		const highest = Math.max(
+			counts[finalMatchup[0].id],
+			counts[finalMatchup[1].id]
+		);
+
+		const tied = finalMatchup.filter(function(item) {
+			return counts[item.id] === highest;
+		});
+
+		const winner = tied[Math.floor(Math.random() * tied.length)];
+
+		if (finalMatchupIndex === 0) {
+			finalTournamentItems[0] = winner;
+			finalMatchupIndex = 1;
+			broadcastNextFinalMatchup();
+			return;
+		}
+
+		if (finalMatchupIndex === 1) {
+			finalTournamentItems[1] = winner;
+			finalMatchupIndex = 2;
+			broadcastNextFinalMatchup();
+			return;
+		}
+
+		finalWinner = winner;
+		finalTournamentFinished = true;
+
+		const revealAt = Date.now() + FINAL_WINNER_REVEAL_LENGTH;
+		broadcastMessage({
+			type: "roundWinner",
+			senderId: myPeerId,
+			item: winner,
+			roundNumber: 5,
+			nextAt: revealAt,
+			isFinal: true
+		});
+
+		showRoundWinner(winner, 5, revealAt, true);
+	}
+
+	// ============================================================
+	// RETURN / LEAVE
+	// ============================================================
+
+	async function finishGameToLobby() {
+		if (!isHost) {
+			return;
+		}
+
+		await supabaseClient
+			.from("rooms")
+			.update({ status: "lobby" })
+			.eq("room_code", roomCodeValue)
+			.eq("host_id", myPeerId);
+
+		await broadcastMessage({
+			type: "returnLobby",
+			senderId: myPeerId,
+			message: "Tournament finished! Ready for another game."
+		});
+
+		returnToLobby(false, "Tournament finished! Ready for another game.");
+	}
+
+	function returnToLobby(disconnect, message) {
+		stopEditingTimer();
+		stopVotingTimer();
+		stopFinalMatchupTimer();
+
+		if (winnerRevealTimer) {
+			clearInterval(winnerRevealTimer);
+			winnerRevealTimer = null;
+		}
+
+		clearTimeout(hostRoundTimeout);
+		hostRoundTimeout = null;
+
+		currentPhase = "lobby";
+		gameStarted = false;
+		submittedIds = new Set();
+		roundResults = {};
+		votingVotes = {};
+		finalVotes = {};
+		currentRoundId = null;
+		currentRoundNumber = 0;
+		finalWinner = null;
+		finalTournamentFinished = false;
+
+		if (disconnect) {
+			disconnectEverything();
+		}
+
+		showScreen(lobbyScreen);
+		lobbyStatus.innerText = message || "Waiting for the next game...";
+		updatePlayerList();
+	}
+
+	async function deleteRoom() {
+		if (!roomCodeValue || !myPeerId) {
+			return;
+		}
+
+		const result = await supabaseClient
+			.from("rooms")
+			.delete()
+			.eq("room_code", roomCodeValue)
+			.eq("host_id", myPeerId);
+
+		if (result.error) {
+			console.error("Room deletion failed:", result.error);
+		}
+	}
+
+	async function leaveLobby() {
+		const wasHost = isHost;
+
+		stopEditingTimer();
+		stopVotingTimer();
+		stopFinalMatchupTimer();
+
+		if (winnerRevealTimer) {
+			clearInterval(winnerRevealTimer);
+			winnerRevealTimer = null;
+		}
+
+		clearTimeout(hostRoundTimeout);
+		hostRoundTimeout = null;
+
+		if (wasHost) {
+			await broadcastMessage({
+				type: "hostLeft",
+				senderId: myPeerId
+			});
+			await deleteRoom();
+		}
+
+		await disconnectEverything();
+
+		participants = [];
+		gameStarted = false;
+		isHost = false;
+		roomCodeValue = "";
+		hostUserId = null;
+		currentPhase = "lobby";
+
+		hostLobbyButton.disabled = false;
+		joinLobbyButton.disabled = false;
+		setMainMenuStatus("");
+		showScreen(mainMenu);
+	}
+
+	async function disconnectEverything() {
+		realtimeChannelReady = false;
+
+		if (realtimeChannel) {
+			try {
+				await realtimeChannel.untrack();
+			} catch (error) {
+			}
+
+			try {
+				await supabaseClient.removeChannel(realtimeChannel);
+			} catch (error) {
+				console.error(error);
+			}
+
+			realtimeChannel = null;
+		}
+	}
+
+	function handleHostDisconnected() {
+		stopEditingTimer();
+		stopVotingTimer();
+		stopFinalMatchupTimer();
+		gameStarted = false;
+		isHost = false;
+		alert("The host left the lobby.");
+		disconnectEverything();
+		hostLobbyButton.disabled = false;
+		joinLobbyButton.disabled = false;
+		showScreen(mainMenu);
+	}
+
+	function getParticipantName(userId) {
+		const player = participants.find(function(item) {
+			return item.id === userId;
+		});
+
+		return player ? player.name : "Player";
+	}
+
+	function clearVoteSelection() {
+		voteButtons.forEach(function(button) {
+			button.classList.remove("selected");
+		});
+	}
+
+	// CHANGE LOCAL MEME
+	// ============================================================
+	// CHANGE LOCAL MEME
+	// ============================================================
+
+	changeMemeButton.addEventListener(
+		"click",
+		function() {
+
+			if (roundSubmitted) {
+				return;
+			}
+
+			currentMeme =
+				getRandomMeme();
+
+			createControls();
+
+			loadMemeImage();
+		}
+	);
+
+
+	// ============================================================
+	// CREATE EDITOR CONTROLS
+	// ============================================================
+
+	function createControls() {
+
+		controls.innerHTML =
+			"";
+
+		textBoxes = [];
+
+		if (!currentMeme) {
+			return;
+		}
+
+		const boxCount =
+			currentMeme.box_count || 2;
+
+
+		for (
+			let i = 0;
+			i < boxCount;
+			i++
+		) {
+
+			const box = {
+
+				text: "",
+
+				x: 50,
+
+				y: 50,
+
+				size: 8,
+
+				index: i
+			};
+
+
+			if (
+				boxCount === 2
+			) {
+
+				if (i === 0) {
+					box.y = 10;
+				} else {
+					box.y = 90;
+				}
+
+			} else {
+
+				box.y =
+					10 +
+					(
+						80 /
+						Math.max(
+							1,
+							boxCount - 1
+						)
+					) *
+					i;
+			}
+
+
+			textBoxes.push(
+				box
+			);
+
+			createTextBoxControls(
+				box
+			);
+		}
+	}
+
+
+	// ============================================================
+	// CREATE TEXT BOX CONTROLS
+	// ============================================================
+
+	function createTextBoxControls(
+		box
+	) {
+
+		const container =
+			document.createElement(
+				"div"
+			);
+
+		container.className =
+			"textBoxControls";
+
+
+		const title =
+			document.createElement(
+				"h3"
+			);
+
+		title.innerText =
+			"Text Box " +
+			(box.index + 1);
+
+		container.appendChild(
+			title
+		);
+
+
+		// TEXT
+
+		const textLabel =
+			document.createElement(
+				"label"
+			);
+
+		textLabel.innerText =
+			"Text";
+
+		container.appendChild(
+			textLabel
+		);
+
+
+		const textInput =
+			document.createElement(
+				"input"
+			);
+
+		textInput.type =
+			"text";
+
+		textInput.placeholder =
+			getPlaceholder(
+				box.index,
+				currentMeme.box_count
+			);
+
+		textInput.value =
+			box.text;
+
+
+		textInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.text =
+					textInput.value;
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			textInput
+		);
+
+
+		// X
+
+		const xLabel =
+			document.createElement(
+				"label"
+			);
+
+		xLabel.innerText =
+			"X Position (%)";
+
+		container.appendChild(
+			xLabel
+		);
+
+
+		const xInput =
+			document.createElement(
+				"input"
+			);
+
+		xInput.type =
+			"number";
+
+		xInput.className =
+			"numberInput";
+
+		xInput.min = 0;
+
+		xInput.max = 100;
+
+		xInput.step = 0.1;
+
+		xInput.value =
+			box.x;
+
+
+		xInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.x =
+					clamp(
+						parseFloat(
+							xInput.value
+						) || 0,
+						0,
+						100
+					);
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			xInput
+		);
+
+
+		// Y
+
+		const yLabel =
+			document.createElement(
+				"label"
+			);
+
+		yLabel.innerText =
+			"Y Position (%)";
+
+		container.appendChild(
+			yLabel
+		);
+
+
+		const yInput =
+			document.createElement(
+				"input"
+			);
+
+		yInput.type =
+			"number";
+
+		yInput.className =
+			"numberInput";
+
+		yInput.min = 0;
+
+		yInput.max = 100;
+
+		yInput.step = 0.1;
+
+		yInput.value =
+			box.y;
+
+
+		yInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.y =
+					clamp(
+						parseFloat(
+							yInput.value
+						) || 0,
+						0,
+						100
+					);
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			yInput
+		);
+
+
+		// FONT SIZE
+
+		const sizeLabel =
+			document.createElement(
+				"label"
+			);
+
+		sizeLabel.innerText =
+			"Font Size (%)";
+
+		container.appendChild(
+			sizeLabel
+		);
+
+
+		const sizeInput =
+			document.createElement(
+				"input"
+			);
+
+		sizeInput.type =
+			"number";
+
+		sizeInput.className =
+			"numberInput";
+
+		sizeInput.min = 1;
+
+		sizeInput.max = 30;
+
+		sizeInput.step = 1;
+
+		sizeInput.value =
+			box.size;
+
+
+		sizeInput.addEventListener(
+			"input",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.size =
+					clamp(
+						Math.round(
+							parseFloat(
+								sizeInput.value
+							) || 1
+						),
+						1,
+						30
+					);
+
+				sizeInput.value =
+					box.size;
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			sizeInput
+		);
+
+
+		// RESET
+
+		const resetButton =
+			document.createElement(
+				"button"
+			);
+
+		resetButton.className =
+			"resetButton";
+
+		resetButton.innerText =
+			"Reset Position";
+
+
+		resetButton.addEventListener(
+			"click",
+			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.x =
+					50;
+
+				if (
+					currentMeme.box_count ===
+					2
+				) {
+
+					box.y =
+						box.index === 0
+							? 10
+							: 90;
+
+				} else {
+
+					box.y =
+						10 +
+						(
+							80 /
+							Math.max(
+								1,
+								currentMeme.box_count - 1
+							)
+						) *
+						box.index;
+				}
+
+
+				xInput.value =
+					box.x;
+
+				yInput.value =
+					box.y;
+
+				drawMeme();
+			}
+		);
+
+
+		container.appendChild(
+			resetButton
+		);
+
+		controls.appendChild(
+			container
+		);
+
+
+		box.xInput =
+			xInput;
+
+		box.yInput =
+			yInput;
+
+		box.sizeInput =
+			sizeInput;
+	}
+
+
+	// ============================================================
+	// PLACEHOLDER
+	// ============================================================
+
+	function getPlaceholder(
+		index,
+		boxCount
+	) {
+
+		if (boxCount === 1) {
+			return "Meme text...";
+		}
+
+		if (index === 0) {
+			return "Top text...";
+		}
+
+		if (index === 1) {
+			return "Bottom text...";
+		}
+
+		return "Text " +
+			(index + 1) +
+			"...";
+	}
+
+
+	// ============================================================
+	// LOAD IMAGE
+	// ============================================================
+
+	function loadMemeImage() {
+
+		if (!currentMeme) {
+			return;
+		}
+
+		const token =
+			++imageLoadToken;
+
+		currentImage =
+			new Image();
+
+		currentImage.crossOrigin =
+			"anonymous";
+
+		editorMemeName.innerText =
+			currentMeme.name;
+
+
+		currentImage.onload =
+			function() {
+
+				if (
+					token !==
+					imageLoadToken
+				) {
+					return;
+				}
+
+				memeCanvas.width =
+					currentImage.naturalWidth;
+
+				memeCanvas.height =
+					currentImage.naturalHeight;
+
+				drawMeme();
+			};
+
+
+		currentImage.onerror =
+			function() {
+
+				console.error(
+					"Failed to load meme image."
+				);
+			};
+
+
+		currentImage.src =
+			currentMeme.url;
+	}
+
+
+	// ============================================================
+	// DRAW MEME
+	// ============================================================
+
+	function drawMeme() {
+
+		if (
+			!currentImage ||
+			!currentImage.complete
+		) {
+			return;
+		}
+
+
+		ctx.clearRect(
+			0,
+			0,
+			memeCanvas.width,
+			memeCanvas.height
+		);
+
+
+		ctx.drawImage(
+			currentImage,
+			0,
+			0,
+			memeCanvas.width,
+			memeCanvas.height
+		);
+
+
+		for (
+			const box of
+			textBoxes
+		) {
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				memeCanvas.width *
+				(box.x / 100);
+
+			const y =
+				memeCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				memeCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
+
+			drawText(
+				ctx,
+				box.text,
+				x,
+				y,
+				fontSize,
+				memeCanvas.width
+			);
+		}
+
+
+		if (!roundSubmitted) {
+			drawTextHandles();
+		}
+	}
+
+
+	// ============================================================
+	// TEXT STYLE
+	// ============================================================
+
+	function setupTextStyle(
+		drawCtx,
+		fontSize
+	) {
+
+		drawCtx.font =
+			"bold " +
+			fontSize +
+			"px Impact, Arial Black, sans-serif";
+
+		drawCtx.textAlign =
+			"center";
+
+		drawCtx.textBaseline =
+			"middle";
+
+		drawCtx.fillStyle =
+			"white";
+
+		drawCtx.strokeStyle =
+			"black";
+
+		drawCtx.lineWidth =
+			Math.max(
+				5,
+				fontSize * 0.16
+			);
+
+		drawCtx.lineJoin =
+			"round";
+	}
+
+
+	// ============================================================
+	// DRAW TEXT
+	// ============================================================
+
+	function drawText(
+		drawCtx,
+		text,
+		x,
+		y,
+		fontSize,
+		canvasWidth
+	) {
+
+		const maxWidth =
+			canvasWidth * 0.9;
+
+		const lines =
+			wrapText(
+				drawCtx,
+				text,
+				maxWidth,
+				fontSize
+			);
+
+		const lineHeight =
+			fontSize * 1.05;
+
+		const totalHeight =
+			lines.length *
+			lineHeight;
+
+		let startY =
+			y -
+			totalHeight / 2 +
+			lineHeight / 2;
+
+
+		for (
+			const line of
+			lines
+		) {
+
+			drawSpacedText(
+				drawCtx,
+				line,
+				x,
+				startY,
+				fontSize
+			);
+
+			startY +=
+				lineHeight;
+		}
+	}
+
+
+	// ============================================================
+	// DRAW SPACED TEXT
+	// ============================================================
+
+	function drawSpacedText(
+		drawCtx,
+		text,
+		x,
+		y,
+		fontSize
+	) {
+
+		const letterSpacing =
+			fontSize * 0.055;
+
+		const characters =
+			Array.from(text);
+
+		if (
+			characters.length === 0
+		) {
+			return;
+		}
+
+
+		let totalWidth = 0;
+
+
+		for (
+			const character of
+			characters
+		) {
+
+			totalWidth +=
+				drawCtx.measureText(
+					character
+				).width;
+		}
+
+
+		totalWidth +=
+			letterSpacing *
+			(characters.length - 1);
+
+
+		let currentX =
+			x -
+			totalWidth / 2;
+
+
+		for (
+			const character of
+			characters
+		) {
+
+			const characterWidth =
+				drawCtx.measureText(
+					character
+				).width;
+
+			const characterX =
+				currentX +
+				characterWidth / 2;
+
+
+			drawCtx.strokeText(
+				character,
+				characterX,
+				y
+			);
+
+			drawCtx.fillText(
+				character,
+				characterX,
+				y
+			);
+
+
+			currentX +=
+				characterWidth +
+				letterSpacing;
+		}
+	}
+
+
+	// ============================================================
+	// WRAP TEXT
+	// ============================================================
+
+	function wrapText(
+		drawCtx,
+		text,
+		maxWidth,
+		fontSize
+	) {
+
+		const words =
+			text.split(" ");
+
+		const lines = [];
+
+		let currentLine =
+			"";
+
+
+		for (
+			const word of
+			words
+		) {
+
+			const testLine =
+				currentLine === ""
+					? word
+					: currentLine +
+						" " +
+						word;
+
+
+			const width =
+				getSpacedTextWidth(
+					drawCtx,
+					testLine,
+					fontSize
+				);
+
+
+			if (
+				width > maxWidth &&
+				currentLine !== ""
+			) {
+
+				lines.push(
+					currentLine
+				);
+
+				currentLine =
+					word;
+
+			} else {
+
+				currentLine =
+					testLine;
+			}
+		}
+
+
+		if (
+			currentLine !== ""
+		) {
+
+			lines.push(
+				currentLine
+			);
+		}
+
+
+		return lines;
+	}
+
+
+	// ============================================================
+	// SPACED TEXT WIDTH
+	// ============================================================
+
+	function getSpacedTextWidth(
+		drawCtx,
+		text,
+		fontSize
+	) {
+
+		const letterSpacing =
+			fontSize * 0.035;
+
+		const characters =
+			Array.from(text);
+
+		let width = 0;
+
+
+		for (
+			const character of
+			characters
+		) {
+
+			width +=
+				drawCtx.measureText(
+					character
+				).width;
+		}
+
+
+		if (
+			characters.length > 1
+		) {
+
+			width +=
+				letterSpacing *
+				(characters.length - 1);
+		}
+
+
+		return width;
+	}
+
+
+	// ============================================================
+	// DRAW HANDLES
+	// ============================================================
+
+	function drawTextHandles() {
+
+		for (
+			const box of
+			textBoxes
+		) {
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				memeCanvas.width *
+				(box.x / 100);
+
+			const y =
+				memeCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				memeCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
+
+			const textWidth =
+				Math.min(
+					getSpacedTextWidth(
+						ctx,
+						box.text,
+						fontSize
+					),
+					memeCanvas.width *
+					0.9
+				);
+
+
+			const handleWidth =
+				Math.max(
+					60,
+					textWidth + 20
+				);
+
+			const handleHeight =
+				fontSize + 20;
+
+
+			ctx.strokeStyle =
+				"rgba(255,255,255,0.6)";
+
+			ctx.lineWidth =
+				2;
+
+			ctx.setLineDash(
+				[
+					6,
+					4
+				]
+			);
+
+
+			ctx.strokeRect(
+				x -
+					handleWidth / 2,
+				y -
+					handleHeight / 2,
+				handleWidth,
+				handleHeight
+			);
+
+
+			ctx.setLineDash(
+				[]
+			);
+		}
+	}
+
+
+	// ============================================================
+	// FIND BOX UNDER POSITION
+	// ============================================================
+
+	function getBoxAtPosition(
+		mouseX,
+		mouseY
+	) {
+
+		for (
+			let i =
+				textBoxes.length - 1;
+			i >= 0;
+			i--
+		) {
+
+			const box =
+				textBoxes[i];
+
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				memeCanvas.width *
+				(box.x / 100);
+
+			const y =
+				memeCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				memeCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
+
+			const textWidth =
+				Math.min(
+					getSpacedTextWidth(
+						ctx,
+						box.text,
+						fontSize
+					),
+					memeCanvas.width *
+					0.9
+				);
+
+
+			const boxWidth =
+				Math.max(
+					60,
+					textWidth + 30
+				);
+
+			const boxHeight =
+				fontSize + 30;
+
+
+			if (
+				mouseX >=
+					x -
+					boxWidth / 2 &&
+				mouseX <=
+					x +
+					boxWidth / 2 &&
+				mouseY >=
+					y -
+					boxHeight / 2 &&
+				mouseY <=
+					y +
+					boxHeight / 2
+			) {
+
+				return box;
+			}
+		}
+
+
+		return null;
+	}
+
+
+	// ============================================================
+	// MOUSE DOWN
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"mousedown",
+		function(event) {
+
+			if (roundSubmitted) {
+				return;
+			}
+
+
+			const position =
+				getMousePosition(
+					event
+				);
+
+
+			const box =
+				getBoxAtPosition(
+					position.x,
+					position.y
+				);
+
+
+			if (!box) {
+				return;
+			}
+
+
+			draggingBox =
+				box;
+
+
+			dragOffsetX =
+				position.x -
+				memeCanvas.width *
+				(box.x / 100);
+
+
+			dragOffsetY =
+				position.y -
+				memeCanvas.height *
+				(box.y / 100);
+		}
+	);
+
+
+	// ============================================================
+	// MOUSE MOVE
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"mousemove",
+		function(event) {
+
+			if (
+				!draggingBox ||
+				roundSubmitted
+			) {
+				return;
+			}
+
+
+			const position =
+				getMousePosition(
+					event
+				);
+
+
+			const newX =
+				position.x -
+				dragOffsetX;
+
+			const newY =
+				position.y -
+				dragOffsetY;
+
+
+			draggingBox.x =
+				clamp(
+					newX /
+						memeCanvas.width *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.y =
+				clamp(
+					newY /
+						memeCanvas.height *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.xInput.value =
+				draggingBox.x.toFixed(
+					1
+				);
+
+			draggingBox.yInput.value =
+				draggingBox.y.toFixed(
+					1
+				);
+
+
+			drawMeme();
+		}
+	);
+
+
+	// ============================================================
+	// MOUSE UP
+	// ============================================================
+
+	document.addEventListener(
+		"mouseup",
+		function() {
+
+			draggingBox =
+				null;
+		}
+	);
+
+
+	// ============================================================
+	// TOUCH START
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"touchstart",
+		function(event) {
+
+			if (roundSubmitted) {
+				return;
+			}
+
+
+			event.preventDefault();
+
+
+			const touch =
+				event.touches[0];
+
+
+			const position =
+				getTouchPosition(
+					touch
+				);
+
+
+			const box =
+				getBoxAtPosition(
+					position.x,
+					position.y
+				);
+
+
+			if (!box) {
+				return;
+			}
+
+
+			draggingBox =
+				box;
+
+
+			dragOffsetX =
+				position.x -
+				memeCanvas.width *
+				(box.x / 100);
+
+
+			dragOffsetY =
+				position.y -
+				memeCanvas.height *
+				(box.y / 100);
+		},
+		{
+			passive: false
+		}
+	);
+
+
+	// ============================================================
+	// TOUCH MOVE
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"touchmove",
+		function(event) {
+
+			if (
+				!draggingBox ||
+				roundSubmitted
+			) {
+				return;
+			}
+
+
+			event.preventDefault();
+
+
+			const touch =
+				event.touches[0];
+
+
+			const position =
+				getTouchPosition(
+					touch
+				);
+
+
+			const newX =
+				position.x -
+				dragOffsetX;
+
+			const newY =
+				position.y -
+				dragOffsetY;
+
+
+			draggingBox.x =
+				clamp(
+					newX /
+						memeCanvas.width *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.y =
+				clamp(
+					newY /
+						memeCanvas.height *
+						100,
+					0,
+					100
+				);
+
+
+			draggingBox.xInput.value =
+				draggingBox.x.toFixed(
+					1
+				);
+
+			draggingBox.yInput.value =
+				draggingBox.y.toFixed(
+					1
+				);
+
+
+			drawMeme();
+		},
+		{
+			passive: false
+		}
+	);
+
+
+	// ============================================================
+	// TOUCH END
+	// ============================================================
+
+	memeCanvas.addEventListener(
+		"touchend",
+		function() {
+
+			draggingBox =
+				null;
+		}
+	);
+
+
+	// ============================================================
+	// MOUSE POSITION
+	// ============================================================
+
+	function getMousePosition(
+		event
+	) {
+
+		const rect =
+			memeCanvas.getBoundingClientRect();
+
+
+		const scaleX =
+			memeCanvas.width /
+			rect.width;
+
+		const scaleY =
+			memeCanvas.height /
+			rect.height;
+
+
+		return {
+
+			x:
+				(event.clientX -
+					rect.left) *
+				scaleX,
+
+			y:
+				(event.clientY -
+					rect.top) *
+				scaleY
+		};
+	}
+
+
+	// ============================================================
+	// TOUCH POSITION
+	// ============================================================
+
+	function getTouchPosition(
+		touch
+	) {
+
+		const rect =
+			memeCanvas.getBoundingClientRect();
+
+
+		const scaleX =
+			memeCanvas.width /
+			rect.width;
+
+		const scaleY =
+			memeCanvas.height /
+			rect.height;
+
+
+		return {
+
+			x:
+				(touch.clientX -
+					rect.left) *
+				scaleX,
+
+			y:
+				(touch.clientY -
+					rect.top) *
+				scaleY
+		};
+	}
+
+
+	// ============================================================
+	// CREATE FINAL MEME IMAGE
+	// ============================================================
+
+	function createMemeDataURL() {
+
+		if (
+			!currentImage ||
+			!currentImage.complete
+		) {
+
+			return null;
+		}
+
+
+		const exportCanvas =
+			document.createElement(
+				"canvas"
+			);
+
+		exportCanvas.width =
+			memeCanvas.width;
+
+		exportCanvas.height =
+			memeCanvas.height;
+
+
+		const exportCtx =
+			exportCanvas.getContext(
+				"2d"
+			);
+
+
+		exportCtx.drawImage(
+			currentImage,
+			0,
+			0,
+			exportCanvas.width,
+			exportCanvas.height
+		);
+
+
+		for (
+			const box of
+			textBoxes
+		) {
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				exportCanvas.width *
+				(box.x / 100);
+
+			const y =
+				exportCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				exportCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				exportCtx,
+				fontSize
+			);
+
+
+			drawText(
+				exportCtx,
+				box.text,
+				x,
+				y,
+				fontSize,
+				exportCanvas.width
+			);
+		}
+
+
+		try {
+
+			return exportCanvas.toDataURL(
+				"image/png"
+			);
+
+		} catch (error) {
+
+			console.error(
+				"Could not export meme:",
+				error
+			);
+
+			return null;
+		}
+	}
+
+
+	// ============================================================
+	// CLAMP
+	// ============================================================
+
+	function clamp(
+		value,
+		min,
+		max
+	) {
+
+		return Math.min(
+			Math.max(
+				value,
+				min
+			),
+			max
+		);
+	}
+
+
+	// ============================================================
+	// ============================================================
+	// END OF NETWORK / EDITOR SUPPORT
+	// ============================================================
+
+
+
+
+	// ============================================================
+	// BUTTONS
+	// ============================================================
+
+	hostLobbyButton.addEventListener("click", hostLobby);
+	joinLobbyButton.addEventListener("click", joinLobby);
+	hostStartButton.addEventListener("click", hostStartGame);
+	leaveLobbyButton.addEventListener("click", leaveLobby);
+
+	voteButtons.forEach(function(button) {
+		button.addEventListener("click", function() {
+			submitVote(button.dataset.vote);
+		});
+	});
+
+	finalCardA.addEventListener("click", function() {
+		selectFinalMeme(0);
+	});
+
+	finalCardB.addEventListener("click", function() {
+		selectFinalMeme(1);
+	});
+
+	finalVoteButton.addEventListener("click", submitFinalVote);
+
+	joinCodeInput.addEventListener("input", function() {
+		joinCodeInput.value = joinCodeInput.value
+			.toUpperCase()
+			.replace(/[^A-Z0-9]/g, "");
+	});
+
+	nameInput.addEventListener("keydown", function(event) {
+		if (event.key === "Enter") {
+			hostLobby();
+		}
+	});
+
+	joinCodeInput.addEventListener("keydown", function(event) {
+		if (event.key === "Enter") {
+			joinLobby();
+		}
+	});
+
+	// ============================================================
+	// STARTUP
+	// ============================================================
+
+	updatePlayerList();
+	loadMemes();
+
+</script>
+
+</body>
+</html>
