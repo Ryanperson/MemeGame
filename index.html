@@ -4,49 +4,237 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MakeItMeme</title>
 
-<title>Random Meme</title>
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 
 <style>
+	* {
+		box-sizing: border-box;
+	}
+
+	html,
 	body {
 		margin: 0;
+		padding: 0;
+		width: 100%;
+		height: 100%;
 		background: #222;
 		color: white;
 		font-family: Arial, sans-serif;
-		text-align: center;
 	}
 
-	h1 {
-		margin-top: 30px;
+	body {
+		overflow-x: hidden;
 	}
 
-	#randomButton,
-	#saveButton {
-		font-size: 24px;
-		padding: 15px 30px;
-		margin: 20px 5px;
+	button,
+	input {
+		font-family: Arial, sans-serif;
+	}
+
+	button {
 		cursor: pointer;
 	}
 
-	#saveButton {
-		background: #4caf50;
-		color: white;
-		border: none;
-		border-radius: 5px;
+	/* ============================================================
+	   SCREENS
+	   ============================================================ */
+
+	.screen {
+		display: none;
+		width: 100%;
+		min-height: 100vh;
 	}
 
-	#saveButton:hover {
+	.screen.active {
+		display: flex;
+	}
+
+	/* ============================================================
+	   MAIN MENU
+	   ============================================================ */
+
+	#mainMenu {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	#mainMenuContent {
+		width: 420px;
+		max-width: 90vw;
+	}
+
+	#mainMenuTitle {
+		font-size: 64px;
+		font-weight: 900;
+		margin: 0 0 10px 0;
+		letter-spacing: 2px;
+	}
+
+	#mainMenuSubtitle {
+		color: #aaa;
+		font-size: 18px;
+		margin-bottom: 35px;
+	}
+
+	.menuPanel {
+		background: #333;
+		padding: 25px;
+		border-radius: 12px;
+		margin-bottom: 20px;
+	}
+
+	.menuPanel h2 {
+		margin-top: 0;
+	}
+
+	.nameInput,
+	.codeInput {
+		width: 100%;
+		padding: 14px;
+		border: none;
+		border-radius: 6px;
+		font-size: 20px;
+		text-align: center;
+		margin-bottom: 12px;
+		background: #eee;
+		color: #222;
+	}
+
+	.primaryButton {
+		width: 100%;
+		padding: 15px;
+		border: none;
+		border-radius: 6px;
+		background: #4caf50;
+		color: white;
+		font-size: 22px;
+		font-weight: bold;
+	}
+
+	.primaryButton:hover {
 		background: #45a049;
 	}
 
-	#memeName {
-		font-size: 20px;
-		margin: 10px;
+	.secondaryButton {
+		width: 100%;
+		padding: 13px;
+		border: none;
+		border-radius: 6px;
+		background: #555;
+		color: white;
+		font-size: 18px;
 	}
 
-	#loading {
+	.secondaryButton:hover {
+		background: #666;
+	}
+
+	.menuStatus {
+		min-height: 24px;
+		color: #ffcc66;
+		margin-top: 12px;
+	}
+
+	/* ============================================================
+	   LOBBY
+	   ============================================================ */
+
+	#lobbyScreen {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	}
+
+	#lobbyContent {
+		width: 520px;
+		max-width: 92vw;
+	}
+
+	#roomCode {
+		font-size: 48px;
+		font-weight: 900;
+		letter-spacing: 8px;
+		margin: 10px 0;
+	}
+
+	#roomCodeLabel {
+		color: #aaa;
+		font-size: 16px;
+	}
+
+	#hostStartButton {
+		margin-top: 20px;
+	}
+
+	#hostStartButton:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	#playerList {
+		text-align: left;
+		margin-top: 20px;
+	}
+
+	.playerEntry {
+		background: #444;
+		padding: 12px 15px;
+		border-radius: 6px;
+		margin-bottom: 8px;
+		font-size: 18px;
+	}
+
+	.hostTag {
+		color: #ffd34d;
+		font-size: 13px;
+		font-weight: bold;
+		margin-left: 8px;
+	}
+
+	/* ============================================================
+	   EDITOR
+	   ============================================================ */
+
+	#editorScreen {
 		display: none;
-		font-size: 20px;
+		flex-direction: column;
+	}
+
+	#editorScreen.active {
+		display: flex;
+	}
+
+	#editorTopBar {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 25px;
+		flex-wrap: wrap;
+		padding: 14px 20px;
+		background: #111;
+		border-bottom: 1px solid #444;
+	}
+
+	#editorTimer {
+		font-size: 30px;
+		font-weight: bold;
+	}
+
+	#editorMemeName {
+		color: #bbb;
+		font-size: 18px;
+	}
+
+	#changeMemeButton {
+		padding: 10px 16px;
+		border: none;
+		border-radius: 5px;
+		background: #555;
+		color: white;
+		font-size: 16px;
 	}
 
 	#editor {
@@ -56,6 +244,7 @@
 		align-items: flex-start;
 		gap: 30px;
 		margin: 20px;
+		flex: 1;
 	}
 
 	#canvasContainer {
@@ -67,7 +256,7 @@
 	#memeCanvas {
 		display: block;
 		max-width: 70vw;
-		max-height: 70vh;
+		max-height: 75vh;
 		background: black;
 		cursor: crosshair;
 		touch-action: none;
@@ -114,73 +303,483 @@
 		cursor: pointer;
 	}
 
-	#instructions {
-		margin: 10px auto 20px auto;
-		max-width: 700px;
-		color: #bbb;
+	#editorMessage {
+		text-align: center;
+		color: #aaa;
+		padding: 10px;
+	}
+
+	/* ============================================================
+	   SHOWCASE
+	   ============================================================ */
+
+	#showcaseScreen {
+		display: none;
+		align-items: center;
+		justify-content: center;
+		background: #000;
+		min-height: 100vh;
+	}
+
+	#showcaseScreen.active {
+		display: flex;
+	}
+
+	#showcaseContent {
+		width: 100%;
+		height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 25px;
+	}
+
+	#showcaseImage {
+		display: block;
+		max-width: 92vw;
+		max-height: 78vh;
+		object-fit: contain;
+	}
+
+	#voteButtons {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 18px;
+	}
+
+	.voteButton {
+		width: 80px;
+		height: 60px;
+		border: none;
+		border-radius: 12px;
+		background: #222;
+		color: white;
+		font-size: 30px;
+		transition: transform 0.1s, background 0.1s;
+	}
+
+	.voteButton:hover {
+		background: #444;
+		transform: scale(1.05);
+	}
+
+	.voteButton.selected {
+		background: #666;
+		transform: scale(1.08);
+	}
+
+	#showcaseStatus {
+		position: absolute;
+		bottom: 12px;
+		color: #555;
+		font-size: 12px;
+		pointer-events: none;
 	}
 </style>
+
 
 </head>
 
 <body>
 
-<h1>RANDOM MEME GENERATOR</h1>
 
-<button id="randomButton">
-	RANDOM MEME
-</button>
+<!-- ============================================================
+     MAIN MENU
+     ============================================================ -->
 
-<button id="saveButton">
-	SAVE MEME
-</button>
+<section id="mainMenu" class="screen active">
+	<div id="mainMenuContent">
 
-<div id="loading">
-	Loading...
-</div>
+		<h1 id="mainMenuTitle">
+			MAKEITMEME
+		</h1>
 
-<div id="memeName">
-	Click the button.
-</div>
+		<div id="mainMenuSubtitle">
+			Make memes. Compete. Vote.
+		</div>
 
-<div id="instructions">
-	Drag the text directly on the meme to move it.
-	Use the controls to change the exact position and size.
-</div>
+		<div class="menuPanel">
 
-<div id="editor">
+			<h2>
+				Your Name
+			</h2>
 
-	<div id="canvasContainer">
-		<canvas id="memeCanvas"></canvas>
+			<input
+				id="nameInput"
+				class="nameInput"
+				type="text"
+				maxlength="20"
+				placeholder="Enter your name"
+			>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<button
+				id="hostLobbyButton"
+				class="primaryButton"
+			>
+				HOST LOBBY
+			</button>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Join Lobby
+			</h2>
+
+			<input
+				id="joinCodeInput"
+				class="codeInput"
+				type="text"
+				maxlength="6"
+				placeholder="ROOM CODE"
+			>
+
+			<button
+				id="joinLobbyButton"
+				class="primaryButton"
+			>
+				JOIN LOBBY
+			</button>
+
+		</div>
+
+		<div
+			id="mainMenuStatus"
+			class="menuStatus"
+		></div>
+
+	</div>
+</section>
+
+
+<!-- ============================================================
+     LOBBY
+     ============================================================ -->
+
+<section id="lobbyScreen" class="screen">
+
+	<div id="lobbyContent">
+
+		<div class="menuPanel">
+
+			<div id="roomCodeLabel">
+				ROOM CODE
+			</div>
+
+			<div id="roomCode">
+				------
+			</div>
+
+			<div id="lobbyStatus">
+				Waiting for players...
+			</div>
+
+		</div>
+
+		<div class="menuPanel">
+
+			<h2>
+				Players
+			</h2>
+
+			<div id="playerList">
+			</div>
+
+			<button
+				id="hostStartButton"
+				class="primaryButton"
+			>
+				START GAME
+			</button>
+
+			<button
+				id="leaveLobbyButton"
+				class="secondaryButton"
+				style="margin-top: 10px;"
+			>
+				LEAVE LOBBY
+			</button>
+
+		</div>
+
 	</div>
 
-	<div id="controls">
+</section>
+
+
+<!-- ============================================================
+     EDITOR
+     ============================================================ -->
+
+<section id="editorScreen" class="screen">
+
+	<div id="editorTopBar">
+
+		<div id="editorTimer">
+			60
+		</div>
+
+		<div id="editorMemeName">
+			Loading meme...
+		</div>
+
+		<button id="changeMemeButton">
+			CHANGE MEME
+		</button>
+
 	</div>
 
-</div>
+	<div id="editorMessage">
+		Make your meme before the timer runs out.
+	</div>
+
+	<div id="editor">
+
+		<div id="canvasContainer">
+			<canvas id="memeCanvas"></canvas>
+		</div>
+
+		<div id="controls">
+		</div>
+
+	</div>
+
+</section>
+
+
+<!-- ============================================================
+     SHOWCASE / VOTING
+     ============================================================ -->
+
+<section id="showcaseScreen" class="screen">
+
+	<div id="showcaseContent">
+
+		<img
+			id="showcaseImage"
+			alt="Meme"
+		>
+
+		<div id="voteButtons">
+
+			<button
+				class="voteButton"
+				data-vote="up"
+				title="Thumbs up"
+			>
+				👍
+			</button>
+
+			<button
+				class="voteButton"
+				data-vote="meh"
+				title="Meh"
+			>
+				😐
+			</button>
+
+			<button
+				class="voteButton"
+				data-vote="down"
+				title="Thumbs down"
+			>
+				👎
+			</button>
+
+		</div>
+
+		<div id="showcaseStatus"></div>
+
+	</div>
+
+</section>
+
 
 <script>
 
-	const randomButton = document.getElementById("randomButton");
-	const saveButton = document.getElementById("saveButton");
-	const memeCanvas = document.getElementById("memeCanvas");
-	const memeName = document.getElementById("memeName");
-	const loading = document.getElementById("loading");
-	const controls = document.getElementById("controls");
+	// ============================================================
+	// CONSTANTS
+	// ============================================================
 
-	const ctx = memeCanvas.getContext("2d");
+	const MAX_PLAYERS = 16;
+	const ROUND_LENGTH = 60000;
+	const SHOWCASE_LENGTH = 15000;
+	const ROOM_PREFIX = "makeitmeme-";
+
 
 	// ============================================================
-	// VARIABLES
+	// DOM
+	// ============================================================
+
+	const mainMenu =
+		document.getElementById("mainMenu");
+
+	const lobbyScreen =
+		document.getElementById("lobbyScreen");
+
+	const editorScreen =
+		document.getElementById("editorScreen");
+
+	const showcaseScreen =
+		document.getElementById("showcaseScreen");
+
+
+	const nameInput =
+		document.getElementById("nameInput");
+
+	const joinCodeInput =
+		document.getElementById("joinCodeInput");
+
+	const hostLobbyButton =
+		document.getElementById("hostLobbyButton");
+
+	const joinLobbyButton =
+		document.getElementById("joinLobbyButton");
+
+	const mainMenuStatus =
+		document.getElementById("mainMenuStatus");
+
+
+	const roomCode =
+		document.getElementById("roomCode");
+
+	const lobbyStatus =
+		document.getElementById("lobbyStatus");
+
+	const playerList =
+		document.getElementById("playerList");
+
+	const hostStartButton =
+		document.getElementById("hostStartButton");
+
+	const leaveLobbyButton =
+		document.getElementById("leaveLobbyButton");
+
+
+	const editorTimer =
+		document.getElementById("editorTimer");
+
+	const editorMemeName =
+		document.getElementById("editorMemeName");
+
+	const editorMessage =
+		document.getElementById("editorMessage");
+
+	const changeMemeButton =
+		document.getElementById("changeMemeButton");
+
+	const memeCanvas =
+		document.getElementById("memeCanvas");
+
+	const controls =
+		document.getElementById("controls");
+
+	const showcaseImage =
+		document.getElementById("showcaseImage");
+
+	const voteButtons =
+		document.querySelectorAll(".voteButton");
+
+	const showcaseStatus =
+		document.getElementById("showcaseStatus");
+
+
+	const ctx =
+		memeCanvas.getContext("2d");
+
+
+	// ============================================================
+	// NETWORK STATE
+	// ============================================================
+
+	let peer = null;
+	let hostConnection = null;
+
+	let isHost = false;
+
+	let myPeerId = null;
+	let myName = "";
+
+	let roomCodeValue = "";
+
+	let hostPeerId = null;
+
+	let connections = new Map();
+
+	let participants = [];
+
+	let gameStarted = false;
+
+
+	// ============================================================
+	// ROUND STATE
+	// ============================================================
+
+	let roundStartTime = 0;
+	let roundTimer = null;
+	let roundSubmitted = false;
+
+	let roundResults = {};
+
+
+	// ============================================================
+	// SHOWCASE STATE
+	// ============================================================
+
+	let showcaseItems = [];
+	let showcaseStartedAt = 0;
+	let showcaseTimer = null;
+	let currentShowcaseIndex = -1;
+
+
+	// ============================================================
+	// MEME STATE
 	// ============================================================
 
 	let memes = [];
+
 	let currentMeme = null;
 	let currentImage = null;
 	let textBoxes = [];
+
 	let draggingBox = null;
 	let dragOffsetX = 0;
 	let dragOffsetY = 0;
+
+	let imageLoadToken = 0;
+
+
+	// ============================================================
+	// SCREEN CONTROL
+	// ============================================================
+
+	function showScreen(screen) {
+
+		mainMenu.classList.remove("active");
+		lobbyScreen.classList.remove("active");
+		editorScreen.classList.remove("active");
+		showcaseScreen.classList.remove("active");
+
+		screen.classList.add("active");
+	}
+
+
+	// ============================================================
+	// STATUS
+	// ============================================================
+
+	function setMainMenuStatus(text) {
+
+		mainMenuStatus.innerText = text;
+	}
+
 
 	// ============================================================
 	// LOAD MEMES
@@ -190,39 +789,38 @@
 
 		try {
 
-			loading.style.display = "block";
+			const response =
+				await fetch(
+					"https://api.imgflip.com/get_memes?type=image"
+				);
 
-			const response = await fetch(
-				"https://api.imgflip.com/get_memes?type=image"
-			);
-
-			const data = await response.json();
+			const data =
+				await response.json();
 
 			if (!data.success) {
-				throw new Error("Failed to get memes.");
+				throw new Error(
+					"Failed to load memes."
+				);
 			}
 
-			memes = data.data.memes;
-
-			loading.style.display = "none";
+			memes =
+				data.data.memes;
 
 			console.log(
 				"Loaded memes:",
 				memes.length
 			);
 
-			getRandomMeme();
-
 		} catch (error) {
 
 			console.error(error);
 
-			loading.innerText =
-				"Failed to load memes.";
-
-			loading.style.display = "block";
+			setMainMenuStatus(
+				"Failed to load memes."
+			);
 		}
 	}
+
 
 	// ============================================================
 	// RANDOM MEME
@@ -231,36 +829,1513 @@
 	function getRandomMeme() {
 
 		if (memes.length === 0) {
+			return null;
+		}
+
+		const randomIndex =
+			Math.floor(
+				Math.random() *
+				memes.length
+			);
+
+		return memes[randomIndex];
+	}
+
+
+	// ============================================================
+	// CREATE ROOM CODE
+	// ============================================================
+
+	function generateRoomCode() {
+
+		const characters =
+			"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+		let code = "";
+
+		for (let i = 0; i < 6; i++) {
+
+			code +=
+				characters[
+					Math.floor(
+						Math.random() *
+						characters.length
+					)
+				];
+		}
+
+		return code;
+	}
+
+
+	// ============================================================
+	// VALIDATE NAME
+	// ============================================================
+
+	function validateName() {
+
+		const name =
+			nameInput.value
+				.trim()
+				.slice(0, 20);
+
+		if (name === "") {
+
+			setMainMenuStatus(
+				"Enter your name first."
+			);
+
+			return false;
+		}
+
+		myName = name;
+
+		return true;
+	}
+
+
+	// ============================================================
+	// HOST LOBBY
+	// ============================================================
+
+	async function hostLobby() {
+
+		if (!validateName()) {
 			return;
 		}
 
-		const randomIndex = Math.floor(
-			Math.random() * memes.length
+		if (memes.length === 0) {
+
+			setMainMenuStatus(
+				"Memes are still loading..."
+			);
+
+			return;
+		}
+
+		hostLobbyButton.disabled = true;
+		joinLobbyButton.disabled = true;
+
+		setMainMenuStatus(
+			"Creating lobby..."
 		);
 
-		currentMeme = memes[randomIndex];
+		isHost = true;
 
-		memeName.innerText =
-			currentMeme.name;
+		tryHostRoom();
+
+	}
+
+
+	function tryHostRoom() {
+
+		roomCodeValue =
+			generateRoomCode();
+
+		const peerId =
+			ROOM_PREFIX +
+			roomCodeValue.toLowerCase();
+
+		peer =
+			new Peer(peerId);
+
+
+		peer.on(
+			"open",
+			function(id) {
+
+				myPeerId = id;
+				hostPeerId = id;
+
+				participants = [
+					{
+						id: id,
+						name: myName,
+						isHost: true
+					}
+				];
+
+				roomCode.innerText =
+					roomCodeValue;
+
+				updatePlayerList();
+
+				lobbyStatus.innerText =
+					"Waiting for players...";
+
+				hostStartButton.disabled =
+					false;
+
+				showScreen(
+					lobbyScreen
+				);
+			}
+		);
+
+
+		peer.on(
+			"connection",
+			function(connection) {
+
+				if (!isHost) {
+					return;
+				}
+
+				handleIncomingConnection(
+					connection
+				);
+			}
+		);
+
+
+		peer.on(
+			"error",
+			function(error) {
+
+				console.error(
+					"Peer error:",
+					error
+				);
+
+				if (
+					error.type ===
+					"unavailable-id"
+				) {
+
+					if (peer) {
+						peer.destroy();
+					}
+
+					peer = null;
+
+					setTimeout(
+						tryHostRoom,
+						100
+					);
+
+					return;
+				}
+
+				setMainMenuStatus(
+					"Could not create the lobby."
+				);
+
+				hostLobbyButton.disabled =
+					false;
+
+				joinLobbyButton.disabled =
+					false;
+			}
+		);
+	}
+
+
+	// ============================================================
+	// HANDLE INCOMING HOST CONNECTION
+	// ============================================================
+
+	function handleIncomingConnection(
+		connection
+	) {
+
+		connection.on(
+			"open",
+			function() {
+
+				connections.set(
+					connection.peer,
+					connection
+				);
+
+				connection.on(
+					"data",
+					function(message) {
+
+						handleHostMessage(
+							connection,
+							message
+						);
+					}
+				);
+
+				connection.on(
+					"close",
+					function() {
+
+						removeParticipant(
+							connection.peer
+						);
+					}
+				);
+
+				connection.on(
+					"error",
+					function(error) {
+
+						console.error(
+							error
+						);
+					}
+				);
+
+				sendMessage(
+					connection,
+					{
+						type: "roomInfo",
+						hostId: hostPeerId,
+						players: participants,
+						gameStarted:
+							gameStarted
+					}
+				);
+			}
+		);
+	}
+
+
+	// ============================================================
+	// HOST MESSAGE HANDLER
+	// ============================================================
+
+	function handleHostMessage(
+		connection,
+		message
+	) {
+
+		if (!message || !message.type) {
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"hello"
+		) {
+
+			if (gameStarted) {
+
+				sendMessage(
+					connection,
+					{
+						type: "reject",
+						message:
+							"The game has already started."
+					}
+				);
+
+				connection.close();
+
+				return;
+			}
+
+
+			if (
+				participants.length >=
+				MAX_PLAYERS
+			) {
+
+				sendMessage(
+					connection,
+					{
+						type: "reject",
+						message:
+							"The lobby is full."
+					}
+				);
+
+				connection.close();
+
+				return;
+			}
+
+
+			const existing =
+				participants.find(
+					function(player) {
+						return player.id ===
+							connection.peer;
+					}
+				);
+
+
+			if (!existing) {
+
+				participants.push(
+					{
+						id:
+							connection.peer,
+
+						name:
+							String(
+								message.name ||
+								"Player"
+							)
+								.slice(
+									0,
+									20
+								),
+
+						isHost: false
+					}
+				);
+			}
+
+
+			broadcastRoomState();
+
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"roundResult"
+		) {
+
+			if (!gameStarted) {
+				return;
+			}
+
+			roundResults[
+				connection.peer
+			] = {
+				name:
+					getParticipantName(
+						connection.peer
+					),
+
+				image:
+					message.image
+			};
+
+			checkRoundResults();
+
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"vote"
+		) {
+
+			console.log(
+				"Vote:",
+				getParticipantName(
+					connection.peer
+				),
+				message.index,
+				message.vote
+			);
+
+			return;
+		}
+	}
+
+
+	// ============================================================
+	// JOIN LOBBY
+	// ============================================================
+
+	function joinLobby() {
+
+		if (!validateName()) {
+			return;
+		}
+
+		const code =
+			joinCodeInput.value
+				.trim()
+				.toUpperCase();
+
+		if (
+			!/^[A-Z0-9]{6}$/.test(code)
+		) {
+
+			setMainMenuStatus(
+				"Enter a valid 6-character room code."
+			);
+
+			return;
+		}
+
+		if (peer) {
+			peer.destroy();
+		}
+
+		isHost = false;
+
+		hostPeerId =
+			ROOM_PREFIX +
+			code.toLowerCase();
+
+		roomCodeValue =
+			code;
+
+		setMainMenuStatus(
+			"Joining lobby..."
+		);
+
+		hostLobbyButton.disabled = true;
+		joinLobbyButton.disabled = true;
+
+		peer =
+			new Peer();
+
+
+		peer.on(
+			"open",
+			function(id) {
+
+				myPeerId = id;
+
+				hostConnection =
+					peer.connect(
+						hostPeerId,
+						{
+							reliable: true
+						}
+					);
+
+				setupHostConnection();
+			}
+		);
+
+
+		peer.on(
+			"error",
+			function(error) {
+
+				console.error(
+					"Join error:",
+					error
+				);
+
+				setMainMenuStatus(
+					"Could not join that lobby."
+				);
+
+				hostLobbyButton.disabled =
+					false;
+
+				joinLobbyButton.disabled =
+					false;
+			}
+		);
+	}
+
+
+	// ============================================================
+	// SETUP GUEST CONNECTION
+	// ============================================================
+
+	function setupHostConnection() {
+
+		hostConnection.on(
+			"open",
+			function() {
+
+				sendMessage(
+					hostConnection,
+					{
+						type: "hello",
+						name: myName
+					}
+				);
+
+				setMainMenuStatus(
+					"Connected."
+				);
+			}
+		);
+
+
+		hostConnection.on(
+			"data",
+			function(message) {
+
+				handleGuestMessage(
+					message
+				);
+			}
+		);
+
+
+		hostConnection.on(
+			"close",
+			function() {
+
+				handleHostDisconnected();
+			}
+		);
+
+
+		hostConnection.on(
+			"error",
+			function(error) {
+
+				console.error(
+					error
+				);
+			}
+		);
+	}
+
+
+	// ============================================================
+	// GUEST MESSAGE HANDLER
+	// ============================================================
+
+	function handleGuestMessage(
+		message
+	) {
+
+		if (!message || !message.type) {
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"roomInfo"
+		) {
+
+			participants =
+				message.players || [];
+
+			updatePlayerList();
+
+			roomCode.innerText =
+				roomCodeValue;
+
+			hostStartButton.disabled =
+				true;
+
+			lobbyStatus.innerText =
+				"Waiting for host...";
+
+			showScreen(
+				lobbyScreen
+			);
+
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"roomState"
+		) {
+
+			participants =
+				message.players || [];
+
+			gameStarted =
+				Boolean(
+					message.gameStarted
+				);
+
+			updatePlayerList();
+
+			if (!gameStarted) {
+
+				lobbyStatus.innerText =
+					"Waiting for host...";
+
+				showScreen(
+					lobbyScreen
+				);
+			}
+
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"gameStart"
+		) {
+
+			startRound(
+				message.startAt
+			);
+
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"showcase"
+		) {
+
+			startShowcase(
+				message.items,
+				message.startAt
+			);
+
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"backToLobby"
+		) {
+
+			gameStarted = false;
+
+			stopShowcaseTimer();
+
+			showScreen(
+				lobbyScreen
+			);
+
+			lobbyStatus.innerText =
+				"Waiting for the next game...";
+
+			return;
+		}
+
+
+		if (
+			message.type ===
+			"reject"
+		) {
+
+			alert(
+				message.message ||
+				"Could not join the lobby."
+			);
+
+			disconnectEverything();
+
+			hostLobbyButton.disabled =
+				false;
+
+			joinLobbyButton.disabled =
+				false;
+
+			showScreen(
+				mainMenu
+			);
+
+			return;
+		}
+	}
+
+
+	// ============================================================
+	// BROADCAST ROOM STATE
+	// ============================================================
+
+	function broadcastRoomState() {
+
+		const message = {
+
+			type: "roomState",
+
+			players:
+				participants,
+
+			gameStarted:
+				gameStarted
+		};
+
+		for (
+			const connection of
+			connections.values()
+		) {
+
+			if (
+				connection.open
+			) {
+
+				sendMessage(
+					connection,
+					message
+				);
+			}
+		}
+
+		updatePlayerList();
+	}
+
+
+	// ============================================================
+	// SEND TO EVERYONE
+	// ============================================================
+
+	function broadcast(
+		message
+	) {
+
+		for (
+			const connection of
+			connections.values()
+		) {
+
+			if (
+				connection.open
+			) {
+
+				sendMessage(
+					connection,
+					message
+				);
+			}
+		}
+	}
+
+
+	// ============================================================
+	// SAFE SEND
+	// ============================================================
+
+	function sendMessage(
+		connection,
+		message
+	) {
+
+		if (
+			connection &&
+			connection.open
+		) {
+
+			try {
+
+				connection.send(
+					message
+				);
+
+			} catch (error) {
+
+				console.error(
+					"Send error:",
+					error
+				);
+			}
+		}
+	}
+
+
+	// ============================================================
+	// REMOVE PARTICIPANT
+	// ============================================================
+
+	function removeParticipant(
+		peerId
+	) {
+
+		connections.delete(
+			peerId
+		);
+
+		participants =
+			participants.filter(
+				function(player) {
+					return player.id !==
+						peerId;
+				}
+			);
+
+		delete roundResults[
+			peerId
+		];
+
+		updatePlayerList();
+
+		if (
+			isHost
+		) {
+
+			broadcastRoomState();
+
+			if (gameStarted) {
+				checkRoundResults();
+			}
+		}
+	}
+
+
+	// ============================================================
+	// PARTICIPANT NAME
+	// ============================================================
+
+	function getParticipantName(
+		peerId
+	) {
+
+		const player =
+			participants.find(
+				function(item) {
+					return item.id ===
+						peerId;
+				}
+			);
+
+		if (player) {
+			return player.name;
+		}
+
+		return "Player";
+	}
+
+
+	// ============================================================
+	// PLAYER LIST
+	// ============================================================
+
+	function updatePlayerList() {
+
+		playerList.innerHTML =
+			"";
+
+		for (
+			const player of
+			participants
+		) {
+
+			const entry =
+				document.createElement(
+					"div"
+				);
+
+			entry.className =
+				"playerEntry";
+
+			entry.innerText =
+				player.name;
+
+			if (player.isHost) {
+
+				const hostTag =
+					document.createElement(
+						"span"
+					);
+
+				hostTag.className =
+					"hostTag";
+
+				hostTag.innerText =
+					"HOST";
+
+				entry.appendChild(
+					hostTag
+				);
+			}
+
+			if (
+				player.id ===
+				myPeerId
+			) {
+
+				const youTag =
+					document.createElement(
+						"span"
+					);
+
+				youTag.style.color =
+					"#aaa";
+
+				youTag.style.fontSize =
+					"13px";
+
+				youTag.style.marginLeft =
+					"8px";
+
+				youTag.innerText =
+					"YOU";
+
+				entry.appendChild(
+					youTag
+				);
+			}
+
+			playerList.appendChild(
+				entry
+			);
+		}
+
+		hostStartButton.disabled =
+			!isHost ||
+			participants.length < 1 ||
+			gameStarted;
+	}
+
+
+	// ============================================================
+	// START GAME
+	// ============================================================
+
+	function hostStartGame() {
+
+		if (!isHost) {
+			return;
+		}
+
+		if (gameStarted) {
+			return;
+		}
+
+		if (memes.length === 0) {
+
+			lobbyStatus.innerText =
+				"Memes are still loading.";
+
+			return;
+		}
+
+		gameStarted = true;
+
+		roundResults = {};
+
+		const startAt =
+			Date.now() + 1500;
+
+		participants.forEach(
+			function(player) {
+				roundResults[
+					player.id
+				] = null;
+			}
+		);
+
+		broadcast(
+			{
+				type: "gameStart",
+				startAt: startAt
+			}
+		);
+
+		broadcastRoomState();
+
+		startRound(
+			startAt
+		);
+	}
+
+
+	// ============================================================
+	// START LOCAL ROUND
+	// ============================================================
+
+	function startRound(
+		startAt
+	) {
+
+		roundStartTime =
+			startAt;
+
+		roundSubmitted =
+			false;
+
+		currentMeme =
+			getRandomMeme();
 
 		createControls();
 
 		loadMemeImage();
+
+		showScreen(
+			editorScreen
+		);
+
+		startEditorTimer();
 	}
 
+
 	// ============================================================
-	// CREATE ALL CONTROLS
+	// EDITOR TIMER
+	// ============================================================
+
+	function startEditorTimer() {
+
+		stopEditorTimer();
+
+		updateEditorTimer();
+
+		roundTimer =
+			setInterval(
+				updateEditorTimer,
+				100
+			);
+	}
+
+
+	function stopEditorTimer() {
+
+		if (roundTimer) {
+
+			clearInterval(
+				roundTimer
+			);
+
+			roundTimer = null;
+		}
+	}
+
+
+	function updateEditorTimer() {
+
+		const remaining =
+			Math.max(
+				0,
+				roundStartTime +
+				ROUND_LENGTH -
+				Date.now()
+			);
+
+		const seconds =
+			Math.ceil(
+				remaining / 1000
+			);
+
+		editorTimer.innerText =
+			String(seconds);
+
+		if (
+			remaining <= 0 &&
+			!roundSubmitted
+		) {
+
+			roundSubmitted =
+				true;
+
+			stopEditorTimer();
+
+			editorMessage.innerText =
+				"Time's up! Saving your meme...";
+
+			submitRoundMeme();
+		}
+	}
+
+
+	// ============================================================
+	// SUBMIT LOCAL MEME
+	// ============================================================
+
+	function submitRoundMeme() {
+
+		const image =
+			createMemeDataURL();
+
+		if (!image) {
+
+			editorMessage.innerText =
+				"Could not save your meme.";
+
+			return;
+		}
+
+		editorMessage.innerText =
+			"Your meme has been saved.";
+
+		if (isHost) {
+
+			roundResults[
+				myPeerId
+			] = {
+				name: myName,
+				image: image
+			};
+
+			checkRoundResults();
+
+		} else {
+
+			sendMessage(
+				hostConnection,
+				{
+					type:
+						"roundResult",
+
+					image:
+						image
+				}
+			);
+		}
+	}
+
+
+	// ============================================================
+	// CHECK WHETHER EVERYONE HAS SUBMITTED
+	// ============================================================
+
+	function checkRoundResults() {
+
+		if (!isHost) {
+			return;
+		}
+
+		const activeIds =
+			participants.map(
+				function(player) {
+					return player.id;
+				}
+			);
+
+		for (
+			const id of
+			activeIds
+		) {
+
+			if (
+				!roundResults[id] ||
+				!roundResults[id].image
+			) {
+
+				return;
+			}
+		}
+
+		const items = [];
+
+		for (
+			const player of
+			participants
+		) {
+
+			const result =
+				roundResults[
+					player.id
+				];
+
+			if (
+				result &&
+				result.image
+			) {
+
+				items.push(
+					{
+						peerId:
+							player.id,
+
+						name:
+							player.name,
+
+						image:
+							result.image
+					}
+				);
+			}
+		}
+
+		if (items.length === 0) {
+			return;
+		}
+
+		const startAt =
+			Date.now() + 1000;
+
+		broadcast(
+			{
+				type:
+					"showcase",
+
+				items:
+					items,
+
+				startAt:
+					startAt
+			}
+		);
+
+		startShowcase(
+			items,
+			startAt
+		);
+	}
+
+
+	// ============================================================
+	// START SHOWCASE
+	// ============================================================
+
+	function startShowcase(
+		items,
+		startAt
+	) {
+
+		if (
+			!items ||
+			items.length === 0
+		) {
+			return;
+		}
+
+		showcaseItems =
+			items;
+
+		showcaseStartedAt =
+			startAt;
+
+		currentShowcaseIndex =
+			-1;
+
+		showScreen(
+			showcaseScreen
+		);
+
+		startShowcaseTimer();
+	}
+
+
+	// ============================================================
+	// SHOWCASE TIMER
+	// ============================================================
+
+	function startShowcaseTimer() {
+
+		stopShowcaseTimer();
+
+		updateShowcase();
+
+		showcaseTimer =
+			setInterval(
+				updateShowcase,
+				100
+			);
+	}
+
+
+	function stopShowcaseTimer() {
+
+		if (showcaseTimer) {
+
+			clearInterval(
+				showcaseTimer
+			);
+
+			showcaseTimer = null;
+		}
+	}
+
+
+	function updateShowcase() {
+
+		const elapsed =
+			Math.max(
+				0,
+				Date.now() -
+				showcaseStartedAt
+			);
+
+		const index =
+			Math.floor(
+				elapsed /
+				SHOWCASE_LENGTH
+			);
+
+		if (
+			index >=
+			showcaseItems.length
+		) {
+
+			stopShowcaseTimer();
+
+			finishShowcase();
+
+			return;
+		}
+
+		if (
+			index !==
+			currentShowcaseIndex
+		) {
+
+			currentShowcaseIndex =
+				index;
+
+			showcaseImage.src =
+				showcaseItems[
+					index
+				].image;
+
+			showcaseStatus.innerText =
+				"";
+
+			clearVoteSelection();
+		}
+	}
+
+
+	// ============================================================
+	// VOTE
+	// ============================================================
+
+	function submitVote(
+		vote
+	) {
+
+		if (
+			currentShowcaseIndex < 0 ||
+			currentShowcaseIndex >=
+			showcaseItems.length
+		) {
+			return;
+		}
+
+		const buttons =
+			document.querySelectorAll(
+				".voteButton"
+			);
+
+		buttons.forEach(
+			function(button) {
+
+				button.classList.toggle(
+					"selected",
+					button.dataset.vote ===
+					vote
+				);
+			}
+		);
+
+
+		const creatorPeerId =
+			showcaseItems[
+				currentShowcaseIndex
+			].peerId;
+
+
+		if (isHost) {
+
+			console.log(
+				"Vote:",
+				myName,
+				"for",
+				creatorPeerId,
+				vote
+			);
+
+		} else {
+
+			sendMessage(
+				hostConnection,
+				{
+					type:
+						"vote",
+
+					index:
+						currentShowcaseIndex,
+
+					vote:
+						vote
+				}
+			);
+		}
+	}
+
+
+	// ============================================================
+	// CLEAR VOTE SELECTION
+	// ============================================================
+
+	function clearVoteSelection() {
+
+		voteButtons.forEach(
+			function(button) {
+
+				button.classList.remove(
+					"selected"
+				);
+			}
+		);
+	}
+
+
+	// ============================================================
+	// FINISH SHOWCASE
+	// ============================================================
+
+	function finishShowcase() {
+
+		showcaseItems = [];
+		currentShowcaseIndex = -1;
+
+		if (isHost) {
+
+			gameStarted = false;
+			roundResults = {};
+
+			broadcast(
+				{
+					type:
+						"backToLobby"
+				}
+			);
+
+			broadcastRoomState();
+
+			showScreen(
+				lobbyScreen
+			);
+
+			lobbyStatus.innerText =
+				"Round finished! Ready for another game.";
+
+		} else {
+
+			gameStarted = false;
+
+			showScreen(
+				lobbyScreen
+			);
+
+			lobbyStatus.innerText =
+				"Round finished! Waiting for the host...";
+		}
+	}
+
+
+	// ============================================================
+	// CHANGE LOCAL MEME
+	// ============================================================
+
+	changeMemeButton.addEventListener(
+		"click",
+		function() {
+
+			if (roundSubmitted) {
+				return;
+			}
+
+			currentMeme =
+				getRandomMeme();
+
+			createControls();
+
+			loadMemeImage();
+		}
+	);
+
+
+	// ============================================================
+	// CREATE EDITOR CONTROLS
 	// ============================================================
 
 	function createControls() {
 
-		controls.innerHTML = "";
+		controls.innerHTML =
+			"";
+
 		textBoxes = [];
+
+		if (!currentMeme) {
+			return;
+		}
 
 		const boxCount =
 			currentMeme.box_count || 2;
 
-		for (let i = 0; i < boxCount; i++) {
+
+		for (
+			let i = 0;
+			i < boxCount;
+			i++
+		) {
 
 			const box = {
 
@@ -275,7 +2350,10 @@
 				index: i
 			};
 
-			if (boxCount === 2) {
+
+			if (
+				boxCount === 2
+			) {
 
 				if (i === 0) {
 					box.y = 10;
@@ -287,52 +2365,78 @@
 
 				box.y =
 					10 +
-					(80 / Math.max(
-						1,
-						boxCount - 1
-					)) * i;
+					(
+						80 /
+						Math.max(
+							1,
+							boxCount - 1
+						)
+					) *
+					i;
 			}
 
-			textBoxes.push(box);
 
-			createTextBoxControls(box);
+			textBoxes.push(
+				box
+			);
+
+			createTextBoxControls(
+				box
+			);
 		}
 	}
+
 
 	// ============================================================
 	// CREATE TEXT BOX CONTROLS
 	// ============================================================
 
-	function createTextBoxControls(box) {
+	function createTextBoxControls(
+		box
+	) {
 
 		const container =
-			document.createElement("div");
+			document.createElement(
+				"div"
+			);
 
 		container.className =
 			"textBoxControls";
 
+
 		const title =
-			document.createElement("h3");
+			document.createElement(
+				"h3"
+			);
 
 		title.innerText =
-			"Text Box " + (box.index + 1);
+			"Text Box " +
+			(box.index + 1);
 
-		container.appendChild(title);
+		container.appendChild(
+			title
+		);
 
-		// ========================================================
+
 		// TEXT
-		// ========================================================
 
 		const textLabel =
-			document.createElement("label");
+			document.createElement(
+				"label"
+			);
 
 		textLabel.innerText =
 			"Text";
 
-		container.appendChild(textLabel);
+		container.appendChild(
+			textLabel
+		);
+
 
 		const textInput =
-			document.createElement("input");
+			document.createElement(
+				"input"
+			);
 
 		textInput.type =
 			"text";
@@ -346,9 +2450,14 @@
 		textInput.value =
 			box.text;
 
+
 		textInput.addEventListener(
 			"input",
 			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
 
 				box.text =
 					textInput.value;
@@ -357,22 +2466,31 @@
 			}
 		);
 
-		container.appendChild(textInput);
 
-		// ========================================================
-		// X POSITION
-		// ========================================================
+		container.appendChild(
+			textInput
+		);
+
+
+		// X
 
 		const xLabel =
-			document.createElement("label");
+			document.createElement(
+				"label"
+			);
 
 		xLabel.innerText =
 			"X Position (%)";
 
-		container.appendChild(xLabel);
+		container.appendChild(
+			xLabel
+		);
+
 
 		const xInput =
-			document.createElement("input");
+			document.createElement(
+				"input"
+			);
 
 		xInput.type =
 			"number";
@@ -389,9 +2507,14 @@
 		xInput.value =
 			box.x;
 
+
 		xInput.addEventListener(
 			"input",
 			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
 
 				box.x =
 					clamp(
@@ -406,22 +2529,31 @@
 			}
 		);
 
-		container.appendChild(xInput);
 
-		// ========================================================
-		// Y POSITION
-		// ========================================================
+		container.appendChild(
+			xInput
+		);
+
+
+		// Y
 
 		const yLabel =
-			document.createElement("label");
+			document.createElement(
+				"label"
+			);
 
 		yLabel.innerText =
 			"Y Position (%)";
 
-		container.appendChild(yLabel);
+		container.appendChild(
+			yLabel
+		);
+
 
 		const yInput =
-			document.createElement("input");
+			document.createElement(
+				"input"
+			);
 
 		yInput.type =
 			"number";
@@ -438,9 +2570,14 @@
 		yInput.value =
 			box.y;
 
+
 		yInput.addEventListener(
 			"input",
 			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
 
 				box.y =
 					clamp(
@@ -455,22 +2592,31 @@
 			}
 		);
 
-		container.appendChild(yInput);
 
-		// ========================================================
+		container.appendChild(
+			yInput
+		);
+
+
 		// FONT SIZE
-		// ========================================================
 
 		const sizeLabel =
-			document.createElement("label");
+			document.createElement(
+				"label"
+			);
 
 		sizeLabel.innerText =
 			"Font Size (%)";
 
-		container.appendChild(sizeLabel);
+		container.appendChild(
+			sizeLabel
+		);
+
 
 		const sizeInput =
-			document.createElement("input");
+			document.createElement(
+				"input"
+			);
 
 		sizeInput.type =
 			"number";
@@ -487,9 +2633,14 @@
 		sizeInput.value =
 			box.size;
 
+
 		sizeInput.addEventListener(
 			"input",
 			function() {
+
+				if (roundSubmitted) {
+					return;
+				}
 
 				box.size =
 					clamp(
@@ -509,14 +2660,18 @@
 			}
 		);
 
-		container.appendChild(sizeInput);
 
-		// ========================================================
+		container.appendChild(
+			sizeInput
+		);
+
+
 		// RESET
-		// ========================================================
 
 		const resetButton =
-			document.createElement("button");
+			document.createElement(
+				"button"
+			);
 
 		resetButton.className =
 			"resetButton";
@@ -524,21 +2679,27 @@
 		resetButton.innerText =
 			"Reset Position";
 
+
 		resetButton.addEventListener(
 			"click",
 			function() {
 
-				box.x = 50;
+				if (roundSubmitted) {
+					return;
+				}
+
+				box.x =
+					50;
 
 				if (
-					currentMeme.box_count === 2
+					currentMeme.box_count ===
+					2
 				) {
 
-					if (box.index === 0) {
-						box.y = 10;
-					} else {
-						box.y = 90;
-					}
+					box.y =
+						box.index === 0
+							? 10
+							: 90;
 
 				} else {
 
@@ -554,6 +2715,7 @@
 						box.index;
 				}
 
+
 				xInput.value =
 					box.x;
 
@@ -564,6 +2726,7 @@
 			}
 		);
 
+
 		container.appendChild(
 			resetButton
 		);
@@ -572,7 +2735,6 @@
 			container
 		);
 
-		// Store input references
 
 		box.xInput =
 			xInput;
@@ -583,6 +2745,7 @@
 		box.sizeInput =
 			sizeInput;
 	}
+
 
 	// ============================================================
 	// PLACEHOLDER
@@ -610,11 +2773,19 @@
 			"...";
 	}
 
+
 	// ============================================================
 	// LOAD IMAGE
 	// ============================================================
 
 	function loadMemeImage() {
+
+		if (!currentMeme) {
+			return;
+		}
+
+		const token =
+			++imageLoadToken;
 
 		currentImage =
 			new Image();
@@ -622,8 +2793,19 @@
 		currentImage.crossOrigin =
 			"anonymous";
 
+		editorMemeName.innerText =
+			currentMeme.name;
+
+
 		currentImage.onload =
 			function() {
+
+				if (
+					token !==
+					imageLoadToken
+				) {
+					return;
+				}
 
 				memeCanvas.width =
 					currentImage.naturalWidth;
@@ -634,6 +2816,7 @@
 				drawMeme();
 			};
 
+
 		currentImage.onerror =
 			function() {
 
@@ -642,9 +2825,11 @@
 				);
 			};
 
+
 		currentImage.src =
 			currentMeme.url;
 	}
+
 
 	// ============================================================
 	// DRAW MEME
@@ -659,6 +2844,7 @@
 			return;
 		}
 
+
 		ctx.clearRect(
 			0,
 			0,
@@ -666,9 +2852,6 @@
 			memeCanvas.height
 		);
 
-		// ========================================================
-		// DRAW ORIGINAL IMAGE
-		// ========================================================
 
 		ctx.drawImage(
 			currentImage,
@@ -678,17 +2861,18 @@
 			memeCanvas.height
 		);
 
-		// ========================================================
-		// DRAW TEXT
-		// ========================================================
 
-		for (const box of textBoxes) {
+		for (
+			const box of
+			textBoxes
+		) {
 
 			if (
 				box.text.trim() === ""
 			) {
 				continue;
 			}
+
 
 			const x =
 				memeCanvas.width *
@@ -702,61 +2886,89 @@
 				memeCanvas.width *
 				(box.size / 100);
 
-			ctx.font =
-				"bold " +
-				fontSize +
-				"px Impact, Arial Black, sans-serif";
 
-			ctx.textAlign =
-				"center";
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
 
-			ctx.textBaseline =
-				"middle";
-
-			ctx.fillStyle =
-				"white";
-
-			ctx.strokeStyle =
-				"black";
-
-			ctx.lineWidth =
-				Math.max(
-					5,
-					fontSize * 0.16
-				);
-
-			ctx.lineJoin =
-				"round";
 
 			drawText(
+				ctx,
 				box.text,
 				x,
 				y,
-				fontSize
+				fontSize,
+				memeCanvas.width
 			);
 		}
 
-		drawTextHandles();
+
+		if (!roundSubmitted) {
+			drawTextHandles();
+		}
 	}
+
+
+	// ============================================================
+	// TEXT STYLE
+	// ============================================================
+
+	function setupTextStyle(
+		drawCtx,
+		fontSize
+	) {
+
+		drawCtx.font =
+			"bold " +
+			fontSize +
+			"px Impact, Arial Black, sans-serif";
+
+		drawCtx.textAlign =
+			"center";
+
+		drawCtx.textBaseline =
+			"middle";
+
+		drawCtx.fillStyle =
+			"white";
+
+		drawCtx.strokeStyle =
+			"black";
+
+		drawCtx.lineWidth =
+			Math.max(
+				5,
+				fontSize * 0.16
+			);
+
+		drawCtx.lineJoin =
+			"round";
+	}
+
 
 	// ============================================================
 	// DRAW TEXT
 	// ============================================================
 
 	function drawText(
+		drawCtx,
 		text,
 		x,
 		y,
-		fontSize
+		fontSize,
+		canvasWidth
 	) {
 
 		const maxWidth =
-			memeCanvas.width * 0.9;
+			canvasWidth * 0.9;
 
 		const lines =
 			wrapText(
+				drawCtx,
 				text,
-				maxWidth
+				maxWidth,
+				fontSize
 			);
 
 		const lineHeight =
@@ -771,9 +2983,14 @@
 			totalHeight / 2 +
 			lineHeight / 2;
 
-		for (const line of lines) {
+
+		for (
+			const line of
+			lines
+		) {
 
 			drawSpacedText(
+				drawCtx,
 				line,
 				x,
 				startY,
@@ -785,11 +3002,13 @@
 		}
 	}
 
+
 	// ============================================================
 	// DRAW SPACED TEXT
 	// ============================================================
 
 	function drawSpacedText(
+		drawCtx,
 		text,
 		x,
 		y,
@@ -797,7 +3016,7 @@
 	) {
 
 		const letterSpacing =
-			fontSize * 0.085;
+			fontSize * 0.055;
 
 		const characters =
 			Array.from(text);
@@ -808,28 +3027,39 @@
 			return;
 		}
 
+
 		let totalWidth = 0;
 
-		for (const character of characters) {
+
+		for (
+			const character of
+			characters
+		) {
 
 			totalWidth +=
-				ctx.measureText(
+				drawCtx.measureText(
 					character
 				).width;
 		}
+
 
 		totalWidth +=
 			letterSpacing *
 			(characters.length - 1);
 
+
 		let currentX =
 			x -
 			totalWidth / 2;
 
-		for (const character of characters) {
+
+		for (
+			const character of
+			characters
+		) {
 
 			const characterWidth =
-				ctx.measureText(
+				drawCtx.measureText(
 					character
 				).width;
 
@@ -837,17 +3067,19 @@
 				currentX +
 				characterWidth / 2;
 
-			ctx.strokeText(
+
+			drawCtx.strokeText(
 				character,
 				characterX,
 				y
 			);
 
-			ctx.fillText(
+			drawCtx.fillText(
 				character,
 				characterX,
 				y
 			);
+
 
 			currentX +=
 				characterWidth +
@@ -855,13 +3087,16 @@
 		}
 	}
 
+
 	// ============================================================
 	// WRAP TEXT
 	// ============================================================
 
 	function wrapText(
+		drawCtx,
 		text,
-		maxWidth
+		maxWidth,
+		fontSize
 	) {
 
 		const words =
@@ -869,9 +3104,14 @@
 
 		const lines = [];
 
-		let currentLine = "";
+		let currentLine =
+			"";
 
-		for (const word of words) {
+
+		for (
+			const word of
+			words
+		) {
 
 			const testLine =
 				currentLine === ""
@@ -880,10 +3120,14 @@
 						" " +
 						word;
 
+
 			const width =
 				getSpacedTextWidth(
-					testLine
+					drawCtx,
+					testLine,
+					fontSize
 				);
+
 
 			if (
 				width > maxWidth &&
@@ -904,6 +3148,7 @@
 			}
 		}
 
+
 		if (
 			currentLine !== ""
 		) {
@@ -913,23 +3158,20 @@
 			);
 		}
 
+
 		return lines;
 	}
 
+
 	// ============================================================
-	// GET SPACED TEXT WIDTH
+	// SPACED TEXT WIDTH
 	// ============================================================
 
 	function getSpacedTextWidth(
-		text
+		drawCtx,
+		text,
+		fontSize
 	) {
-
-		const fontSize =
-			parseFloat(
-				ctx.font.match(
-					/\d+(?:\.\d+)?/
-				)?.[0] || 20
-			);
 
 		const letterSpacing =
 			fontSize * 0.035;
@@ -939,13 +3181,18 @@
 
 		let width = 0;
 
-		for (const character of characters) {
+
+		for (
+			const character of
+			characters
+		) {
 
 			width +=
-				ctx.measureText(
+				drawCtx.measureText(
 					character
 				).width;
 		}
+
 
 		if (
 			characters.length > 1
@@ -956,8 +3203,10 @@
 				(characters.length - 1);
 		}
 
+
 		return width;
 	}
+
 
 	// ============================================================
 	// DRAW HANDLES
@@ -965,13 +3214,17 @@
 
 	function drawTextHandles() {
 
-		for (const box of textBoxes) {
+		for (
+			const box of
+			textBoxes
+		) {
 
 			if (
 				box.text.trim() === ""
 			) {
 				continue;
 			}
+
 
 			const x =
 				memeCanvas.width *
@@ -985,18 +3238,24 @@
 				memeCanvas.width *
 				(box.size / 100);
 
-			ctx.font =
-				"bold " +
-				fontSize +
-				"px Impact, Arial Black, sans-serif";
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
 
 			const textWidth =
 				Math.min(
 					getSpacedTextWidth(
-						box.text
+						ctx,
+						box.text,
+						fontSize
 					),
-					memeCanvas.width * 0.9
+					memeCanvas.width *
+					0.9
 				);
+
 
 			const handleWidth =
 				Math.max(
@@ -1007,15 +3266,20 @@
 			const handleHeight =
 				fontSize + 20;
 
+
 			ctx.strokeStyle =
 				"rgba(255,255,255,0.6)";
 
-			ctx.lineWidth = 2;
+			ctx.lineWidth =
+				2;
 
-			ctx.setLineDash([
-				6,
-				4
-			]);
+			ctx.setLineDash(
+				[
+					6,
+					4
+				]
+			);
+
 
 			ctx.strokeRect(
 				x -
@@ -1026,12 +3290,16 @@
 				handleHeight
 			);
 
-			ctx.setLineDash([]);
+
+			ctx.setLineDash(
+				[]
+			);
 		}
 	}
 
+
 	// ============================================================
-	// FIND BOX UNDER MOUSE
+	// FIND BOX UNDER POSITION
 	// ============================================================
 
 	function getBoxAtPosition(
@@ -1049,11 +3317,13 @@
 			const box =
 				textBoxes[i];
 
+
 			if (
 				box.text.trim() === ""
 			) {
 				continue;
 			}
+
 
 			const x =
 				memeCanvas.width *
@@ -1067,18 +3337,24 @@
 				memeCanvas.width *
 				(box.size / 100);
 
-			ctx.font =
-				"bold " +
-				fontSize +
-				"px Impact, Arial Black, sans-serif";
+
+			setupTextStyle(
+				ctx,
+				fontSize
+			);
+
 
 			const textWidth =
 				Math.min(
 					getSpacedTextWidth(
-						box.text
+						ctx,
+						box.text,
+						fontSize
 					),
-					memeCanvas.width * 0.9
+					memeCanvas.width *
+					0.9
 				);
+
 
 			const boxWidth =
 				Math.max(
@@ -1088,6 +3364,7 @@
 
 			const boxHeight =
 				fontSize + 30;
+
 
 			if (
 				mouseX >=
@@ -1108,8 +3385,10 @@
 			}
 		}
 
+
 		return null;
 	}
+
 
 	// ============================================================
 	// MOUSE DOWN
@@ -1119,10 +3398,16 @@
 		"mousedown",
 		function(event) {
 
+			if (roundSubmitted) {
+				return;
+			}
+
+
 			const position =
 				getMousePosition(
 					event
 				);
+
 
 			const box =
 				getBoxAtPosition(
@@ -1130,17 +3415,21 @@
 					position.y
 				);
 
+
 			if (!box) {
 				return;
 			}
 
+
 			draggingBox =
 				box;
+
 
 			dragOffsetX =
 				position.x -
 				memeCanvas.width *
 				(box.x / 100);
+
 
 			dragOffsetY =
 				position.y -
@@ -1148,6 +3437,7 @@
 				(box.y / 100);
 		}
 	);
+
 
 	// ============================================================
 	// MOUSE MOVE
@@ -1157,14 +3447,19 @@
 		"mousemove",
 		function(event) {
 
-			if (!draggingBox) {
+			if (
+				!draggingBox ||
+				roundSubmitted
+			) {
 				return;
 			}
+
 
 			const position =
 				getMousePosition(
 					event
 				);
+
 
 			const newX =
 				position.x -
@@ -1173,6 +3468,7 @@
 			const newY =
 				position.y -
 				dragOffsetY;
+
 
 			draggingBox.x =
 				clamp(
@@ -1183,6 +3479,7 @@
 					100
 				);
 
+
 			draggingBox.y =
 				clamp(
 					newY /
@@ -1191,6 +3488,7 @@
 					0,
 					100
 				);
+
 
 			draggingBox.xInput.value =
 				draggingBox.x.toFixed(
@@ -1202,9 +3500,11 @@
 					1
 				);
 
+
 			drawMeme();
 		}
 	);
+
 
 	// ============================================================
 	// MOUSE UP
@@ -1214,9 +3514,11 @@
 		"mouseup",
 		function() {
 
-			draggingBox = null;
+			draggingBox =
+				null;
 		}
 	);
+
 
 	// ============================================================
 	// TOUCH START
@@ -1226,15 +3528,23 @@
 		"touchstart",
 		function(event) {
 
+			if (roundSubmitted) {
+				return;
+			}
+
+
 			event.preventDefault();
+
 
 			const touch =
 				event.touches[0];
+
 
 			const position =
 				getTouchPosition(
 					touch
 				);
+
 
 			const box =
 				getBoxAtPosition(
@@ -1242,17 +3552,21 @@
 					position.y
 				);
 
+
 			if (!box) {
 				return;
 			}
 
+
 			draggingBox =
 				box;
+
 
 			dragOffsetX =
 				position.x -
 				memeCanvas.width *
 				(box.x / 100);
+
 
 			dragOffsetY =
 				position.y -
@@ -1264,6 +3578,7 @@
 		}
 	);
 
+
 	// ============================================================
 	// TOUCH MOVE
 	// ============================================================
@@ -1272,19 +3587,26 @@
 		"touchmove",
 		function(event) {
 
-			event.preventDefault();
-
-			if (!draggingBox) {
+			if (
+				!draggingBox ||
+				roundSubmitted
+			) {
 				return;
 			}
 
+
+			event.preventDefault();
+
+
 			const touch =
 				event.touches[0];
+
 
 			const position =
 				getTouchPosition(
 					touch
 				);
+
 
 			const newX =
 				position.x -
@@ -1293,6 +3615,7 @@
 			const newY =
 				position.y -
 				dragOffsetY;
+
 
 			draggingBox.x =
 				clamp(
@@ -1303,6 +3626,7 @@
 					100
 				);
 
+
 			draggingBox.y =
 				clamp(
 					newY /
@@ -1311,6 +3635,7 @@
 					0,
 					100
 				);
+
 
 			draggingBox.xInput.value =
 				draggingBox.x.toFixed(
@@ -1322,12 +3647,14 @@
 					1
 				);
 
+
 			drawMeme();
 		},
 		{
 			passive: false
 		}
 	);
+
 
 	// ============================================================
 	// TOUCH END
@@ -1337,9 +3664,11 @@
 		"touchend",
 		function() {
 
-			draggingBox = null;
+			draggingBox =
+				null;
 		}
 	);
+
 
 	// ============================================================
 	// MOUSE POSITION
@@ -1352,6 +3681,7 @@
 		const rect =
 			memeCanvas.getBoundingClientRect();
 
+
 		const scaleX =
 			memeCanvas.width /
 			rect.width;
@@ -1359,6 +3689,7 @@
 		const scaleY =
 			memeCanvas.height /
 			rect.height;
+
 
 		return {
 
@@ -1374,6 +3705,7 @@
 		};
 	}
 
+
 	// ============================================================
 	// TOUCH POSITION
 	// ============================================================
@@ -1385,6 +3717,7 @@
 		const rect =
 			memeCanvas.getBoundingClientRect();
 
+
 		const scaleX =
 			memeCanvas.width /
 			rect.width;
@@ -1392,6 +3725,7 @@
 		const scaleY =
 			memeCanvas.height /
 			rect.height;
+
 
 		return {
 
@@ -1406,6 +3740,109 @@
 				scaleY
 		};
 	}
+
+
+	// ============================================================
+	// CREATE FINAL MEME IMAGE
+	// ============================================================
+
+	function createMemeDataURL() {
+
+		if (
+			!currentImage ||
+			!currentImage.complete
+		) {
+
+			return null;
+		}
+
+
+		const exportCanvas =
+			document.createElement(
+				"canvas"
+			);
+
+		exportCanvas.width =
+			memeCanvas.width;
+
+		exportCanvas.height =
+			memeCanvas.height;
+
+
+		const exportCtx =
+			exportCanvas.getContext(
+				"2d"
+			);
+
+
+		exportCtx.drawImage(
+			currentImage,
+			0,
+			0,
+			exportCanvas.width,
+			exportCanvas.height
+		);
+
+
+		for (
+			const box of
+			textBoxes
+		) {
+
+			if (
+				box.text.trim() === ""
+			) {
+				continue;
+			}
+
+
+			const x =
+				exportCanvas.width *
+				(box.x / 100);
+
+			const y =
+				exportCanvas.height *
+				(box.y / 100);
+
+			const fontSize =
+				exportCanvas.width *
+				(box.size / 100);
+
+
+			setupTextStyle(
+				exportCtx,
+				fontSize
+			);
+
+
+			drawText(
+				exportCtx,
+				box.text,
+				x,
+				y,
+				fontSize,
+				exportCanvas.width
+			);
+		}
+
+
+		try {
+
+			return exportCanvas.toDataURL(
+				"image/png"
+			);
+
+		} catch (error) {
+
+			console.error(
+				"Could not export meme:",
+				error
+			);
+
+			return null;
+		}
+	}
+
 
 	// ============================================================
 	// CLAMP
@@ -1426,146 +3863,209 @@
 		);
 	}
 
+
 	// ============================================================
-	// SAVE MEME
+	// LEAVE LOBBY
 	// ============================================================
 
-	saveButton.addEventListener(
+	function leaveLobby() {
+
+		disconnectEverything();
+
+		isHost = false;
+		gameStarted = false;
+
+		participants = [];
+
+		roundResults = {};
+
+		hostConnection = null;
+		hostPeerId = null;
+		roomCodeValue = "";
+
+		hostLobbyButton.disabled =
+			false;
+
+		joinLobbyButton.disabled =
+			false;
+
+		setMainMenuStatus(
+			""
+		);
+
+		showScreen(
+			mainMenu
+		);
+	}
+
+
+	// ============================================================
+	// HOST DISCONNECTED
+	// ============================================================
+
+	function handleHostDisconnected() {
+
+		if (isHost) {
+			return;
+		}
+
+		stopEditorTimer();
+		stopShowcaseTimer();
+
+		gameStarted =
+			false;
+
+		alert(
+			"The host left the lobby."
+		);
+
+		disconnectEverything();
+
+		hostLobbyButton.disabled =
+			false;
+
+		joinLobbyButton.disabled =
+			false;
+
+		showScreen(
+			mainMenu
+		);
+	}
+
+
+	// ============================================================
+	// DISCONNECT EVERYTHING
+	// ============================================================
+
+	function disconnectEverything() {
+
+		stopEditorTimer();
+		stopShowcaseTimer();
+
+		if (hostConnection) {
+
+			try {
+				hostConnection.close();
+			} catch (error) {
+			}
+
+			hostConnection =
+				null;
+		}
+
+
+		for (
+			const connection of
+			connections.values()
+		) {
+
+			try {
+				connection.close();
+			} catch (error) {
+			}
+		}
+
+
+		connections.clear();
+
+
+		if (peer) {
+
+			try {
+				peer.destroy();
+			} catch (error) {
+			}
+
+			peer = null;
+		}
+	}
+
+
+	// ============================================================
+	// BUTTONS
+	// ============================================================
+
+	hostLobbyButton.addEventListener(
 		"click",
-		function() {
+		hostLobby
+	);
 
-			if (
-				!currentMeme ||
-				!currentImage
-			) {
-				return;
-			}
+	joinLobbyButton.addEventListener(
+		"click",
+		joinLobby
+	);
 
-			// Clear the canvas so the editor handles
-			// are not included in the saved image.
+	hostStartButton.addEventListener(
+		"click",
+		hostStartGame
+	);
 
-			ctx.clearRect(
-				0,
-				0,
-				memeCanvas.width,
-				memeCanvas.height
-			);
+	leaveLobbyButton.addEventListener(
+		"click",
+		leaveLobby
+	);
 
-			// Draw the original meme.
 
-			ctx.drawImage(
-				currentImage,
-				0,
-				0,
-				memeCanvas.width,
-				memeCanvas.height
-			);
+	voteButtons.forEach(
+		function(button) {
 
-			// Draw all text.
+			button.addEventListener(
+				"click",
+				function() {
 
-			for (const box of textBoxes) {
-
-				if (
-					box.text.trim() === ""
-				) {
-					continue;
-				}
-
-				const x =
-					memeCanvas.width *
-					(box.x / 100);
-
-				const y =
-					memeCanvas.height *
-					(box.y / 100);
-
-				const fontSize =
-					memeCanvas.width *
-					(box.size / 100);
-
-				ctx.font =
-					"bold " +
-					fontSize +
-					"px Impact, Arial Black, sans-serif";
-
-				ctx.textAlign =
-					"center";
-
-				ctx.textBaseline =
-					"middle";
-
-				ctx.fillStyle =
-					"white";
-
-				ctx.strokeStyle =
-					"black";
-
-				ctx.lineWidth =
-					Math.max(
-						5,
-						fontSize * 0.16
+					submitVote(
+						button.dataset.vote
 					);
-
-				ctx.lineJoin =
-					"round";
-
-				drawText(
-					box.text,
-					x,
-					y,
-					fontSize
-				);
-			}
-
-			// Turn the entire meme into one PNG.
-
-			const imageURL =
-				memeCanvas.toDataURL(
-					"image/png"
-				);
-
-			const link =
-				document.createElement("a");
-
-			const safeName =
-				currentMeme.name
-					.replace(
-						/[^a-z0-9]/gi,
-						"-"
-					)
-					.toLowerCase();
-
-			link.download =
-				safeName +
-				".png";
-
-			link.href =
-				imageURL;
-
-			document.body.appendChild(
-				link
+				}
 			);
-
-			link.click();
-
-			document.body.removeChild(
-				link
-			);
-
-			// Put the editor handles back.
-
-			drawMeme();
 		}
 	);
 
-	// ============================================================
-	// RANDOM BUTTON
-	// ============================================================
 
-	randomButton.addEventListener(
-		"click",
-		getRandomMeme
+	joinCodeInput.addEventListener(
+		"input",
+		function() {
+
+			joinCodeInput.value =
+				joinCodeInput.value
+					.toUpperCase()
+					.replace(
+						/[^A-Z0-9]/g,
+						""
+					);
+		}
 	);
+
+
+	nameInput.addEventListener(
+		"keydown",
+		function(event) {
+
+			if (
+				event.key ===
+				"Enter"
+			) {
+
+				hostLobby();
+			}
+		}
+	);
+
+
+	joinCodeInput.addEventListener(
+		"keydown",
+		function(event) {
+
+			if (
+				event.key ===
+				"Enter"
+			) {
+
+				joinLobby();
+			}
+		}
+	);
+
 
 	// ============================================================
 	// START
