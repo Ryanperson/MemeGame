@@ -693,6 +693,144 @@
 
 
 	// ============================================================
+	// SCREEN CONTROL
+	// ============================================================
+
+	function showScreen(screen) {
+
+		mainMenu.classList.remove("active");
+		lobbyScreen.classList.remove("active");
+		editorScreen.classList.remove("active");
+		showcaseScreen.classList.remove("active");
+
+		screen.classList.add("active");
+	}
+
+
+	// ============================================================
+	// STATUS
+	// ============================================================
+
+	function setMainMenuStatus(text) {
+
+		mainMenuStatus.innerText = text;
+	}
+
+
+	// ============================================================
+	// LOAD MEMES
+	// ============================================================
+
+	async function loadMemes() {
+
+		try {
+
+			const response =
+				await fetch(
+					"https://api.imgflip.com/get_memes?type=image"
+				);
+
+			const data =
+				await response.json();
+
+			if (!data.success) {
+				throw new Error(
+					"Failed to load memes."
+				);
+			}
+
+			memes =
+				data.data.memes;
+
+			console.log(
+				"Loaded memes:",
+				memes.length
+			);
+
+		} catch (error) {
+
+			console.error(error);
+
+			setMainMenuStatus(
+				"Failed to load memes."
+			);
+		}
+	}
+
+
+	// ============================================================
+	// RANDOM MEME
+	// ============================================================
+
+	function getRandomMeme() {
+
+		if (memes.length === 0) {
+			return null;
+		}
+
+		const randomIndex =
+			Math.floor(
+				Math.random() *
+				memes.length
+			);
+
+		return memes[randomIndex];
+	}
+
+
+	// ============================================================
+	// CREATE ROOM CODE
+	// ============================================================
+
+	function generateRoomCode() {
+
+		const characters =
+			"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+		let code = "";
+
+		for (let i = 0; i < 6; i++) {
+
+			code +=
+				characters[
+					Math.floor(
+						Math.random() *
+						characters.length
+					)
+				];
+		}
+
+		return code;
+	}
+
+
+	// ============================================================
+	// VALIDATE NAME
+	// ============================================================
+
+	function validateName() {
+
+		const name =
+			nameInput.value
+				.trim()
+				.slice(0, 20);
+
+		if (name === "") {
+
+			setMainMenuStatus(
+				"Enter your name first."
+			);
+
+			return false;
+		}
+
+		myName = name;
+
+		return true;
+	}
+
+
+	// ============================================================
 	// ============================================================
 	// SUPABASE CONFIG
 	// ============================================================
@@ -1078,12 +1216,17 @@
 	// ============================================================
 
 	async function hostLobby() {
+
 		if (!validateName()) {
 			return;
 		}
-	
+
 		if (memes.length === 0) {
-			mainMenuStatus.textContent = "Please wait for the memes to load.";
+
+			setMainMenuStatus(
+				"Memes are still loading..."
+			);
+
 			return;
 		}
 
