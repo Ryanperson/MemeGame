@@ -31,16 +31,33 @@
 			margin: 10px;
 		}
 
-		#memeImage {
+		#loading {
+			display: none;
+			font-size: 20px;
+		}
+
+		#textInputs {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 10px;
+			margin: 20px;
+		}
+
+		.textInput {
+			width: 400px;
+			max-width: 80%;
+			padding: 12px;
+			font-size: 18px;
+			box-sizing: border-box;
+		}
+
+		#memeCanvas {
 			display: block;
 			max-width: 90%;
 			max-height: 70vh;
 			margin: 20px auto;
-		}
-
-		#loading {
-			display: none;
-			font-size: 20px;
+			background: black;
 		}
 	</style>
 </head>
@@ -61,15 +78,30 @@
 		Click the button.
 	</div>
 
-	<img id="memeImage" src="" alt="Random meme template">
+	<div id="textInputs">
+	</div>
+
+	<canvas id="memeCanvas">
+	</canvas>
 
 	<script>
 		const randomButton = document.getElementById("randomButton");
-		const memeImage = document.getElementById("memeImage");
+		const memeCanvas = document.getElementById("memeCanvas");
 		const memeName = document.getElementById("memeName");
 		const loading = document.getElementById("loading");
+		const textInputs = document.getElementById("textInputs");
+
+		const ctx = memeCanvas.getContext("2d");
 
 		let memes = [];
+		let currentMeme = null;
+		let currentImage = null;
+		let inputs = [];
+
+
+		// ============================================================
+		// LOAD MEMES
+		// ============================================================
 
 		async function loadMemes() {
 			try {
@@ -91,12 +123,20 @@
 
 				console.log("Loaded memes:", memes.length);
 
+				getRandomMeme();
+
 			} catch (error) {
 				console.error(error);
 
 				loading.innerText = "Failed to load memes.";
+				loading.style.display = "block";
 			}
 		}
+
+
+		// ============================================================
+		// GET RANDOM MEME
+		// ============================================================
 
 		function getRandomMeme() {
 			if (memes.length === 0) {
@@ -107,15 +147,325 @@
 				Math.random() * memes.length
 			);
 
-			const meme = memes[randomIndex];
+			currentMeme = memes[randomIndex];
 
-			memeImage.src = meme.url;
-			memeName.innerText = meme.name;
+			memeName.innerText = currentMeme.name;
+
+			createTextInputs();
+
+			loadMemeImage();
 		}
 
-		randomButton.addEventListener("click", getRandomMeme);
+
+		// ============================================================
+		// CREATE TEXT INPUTS
+		// ============================================================
+
+		function createTextInputs() {
+			textInputs.innerHTML = "";
+			inputs = [];
+
+			const boxCount = currentMeme.box_count || 2;
+
+			for (let i = 0; i < boxCount; i++) {
+
+				const input = document.createElement("input");
+
+				input.className = "textInput";
+
+				input.type = "text";
+
+				input.placeholder = getPlaceholder(i, boxCount);
+
+				input.maxLength = 100;
+
+				input.addEventListener("input", drawMeme);
+
+				textInputs.appendChild(input);
+
+				inputs.push(input);
+			}
+		}
+
+
+		// ============================================================
+		// INPUT PLACEHOLDERS
+		// ============================================================
+
+		function getPlaceholder(index, boxCount) {
+
+			if (boxCount === 1) {
+				return "Meme text...";
+			}
+
+			if (index === 0) {
+				return "Top text...";
+			}
+
+			if (index === 1) {
+				return "Bottom text...";
+			}
+
+			return "Text " + (index + 1) + "...";
+		}
+
+
+		// ============================================================
+		// LOAD IMAGE
+		// ============================================================
+
+		function loadMemeImage() {
+
+			currentImage = new Image();
+
+			currentImage.crossOrigin = "anonymous";
+
+			currentImage.onload = function() {
+
+				memeCanvas.width = currentImage.naturalWidth;
+				memeCanvas.height = currentImage.naturalHeight;
+
+				drawMeme();
+			};
+
+			currentImage.onerror = function() {
+				console.error("Failed to load meme image.");
+			};
+
+			currentImage.src = currentMeme.url;
+		}
+
+
+		// ============================================================
+		// DRAW MEME
+		// ============================================================
+
+		function drawMeme() {
+
+			if (!currentImage || !currentImage.complete) {
+				return;
+			}
+
+			ctx.clearRect(
+				0,
+				0,
+				memeCanvas.width,
+				memeCanvas.height
+			);
+
+			// Draw the blank meme template
+			ctx.drawImage(
+				currentImage,
+				0,
+				0,
+				memeCanvas.width,
+				memeCanvas.height
+			);
+
+
+			// --------------------------------------------------------
+			// TEXT SETTINGS
+			// --------------------------------------------------------
+
+			const fontSize = Math.floor(
+				memeCanvas.width * 0.075
+			);
+
+			ctx.font = "bold " + fontSize + "px Impact";
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+
+			ctx.fillStyle = "white";
+
+			ctx.strokeStyle = "black";
+			ctx.lineWidth = Math.max(3, fontSize * 0.08);
+
+			ctx.lineJoin = "round";
+
+
+			// --------------------------------------------------------
+			// DRAW EACH TEXT BOX
+			// --------------------------------------------------------
+
+			const boxCount = inputs.length;
+
+			for (let i = 0; i < boxCount; i++) {
+
+				const text = inputs[i].value.trim();
+
+				if (text === "") {
+					continue;
+				}
+
+				const position = getTextPosition(
+					i,
+					boxCount
+				);
+
+				drawText(
+					text,
+					position.x,
+					position.y,
+					fontSize
+				);
+			}
+		}
+
+
+		// ============================================================
+		// GET TEXT POSITION
+		// ============================================================
+
+		function getTextPosition(index, boxCount) {
+
+			const width = memeCanvas.width;
+			const height = memeCanvas.height;
+
+			// One text box = center
+			if (boxCount === 1) {
+				return {
+					x: width / 2,
+					y: height / 2
+				};
+			}
+
+
+			// Two text boxes = classic top/bottom
+			if (boxCount === 2) {
+
+				if (index === 0) {
+					return {
+						x: width / 2,
+						y: height * 0.09
+					};
+				}
+
+				return {
+					x: width / 2,
+					y: height * 0.91
+				};
+			}
+
+
+			// Three or more boxes
+			// Spread them vertically across the image.
+
+			const padding = height * 0.08;
+
+			const usableHeight = height - padding * 2;
+
+			const spacing =
+				usableHeight / (boxCount - 1);
+
+			return {
+				x: width / 2,
+				y: padding + spacing * index
+			};
+		}
+
+
+		// ============================================================
+		// DRAW TEXT WITH IMPACT + OUTLINE
+		// ============================================================
+
+		function drawText(text, x, y, fontSize) {
+
+			const maxWidth = memeCanvas.width * 0.9;
+
+			const lines = wrapText(
+				text,
+				maxWidth,
+				fontSize
+			);
+
+			const lineHeight = fontSize * 1.05;
+
+			const totalHeight =
+				lines.length * lineHeight;
+
+			let startY =
+				y - totalHeight / 2 + lineHeight / 2;
+
+
+			for (const line of lines) {
+
+				// Black outline
+				ctx.strokeText(
+					line,
+					x,
+					startY
+				);
+
+				// White Impact text
+				ctx.fillText(
+					line,
+					x,
+					startY
+				);
+
+				startY += lineHeight;
+			}
+		}
+
+
+		// ============================================================
+		// WRAP LONG TEXT
+		// ============================================================
+
+		function wrapText(text, maxWidth, fontSize) {
+
+			const words = text.split(" ");
+
+			const lines = [];
+
+			let currentLine = "";
+
+			for (const word of words) {
+
+				const testLine =
+					currentLine === ""
+						? word
+						: currentLine + " " + word;
+
+				const width =
+					ctx.measureText(testLine).width;
+
+				if (width > maxWidth && currentLine !== "") {
+
+					lines.push(currentLine);
+
+					currentLine = word;
+
+				} else {
+
+					currentLine = testLine;
+				}
+			}
+
+			if (currentLine !== "") {
+				lines.push(currentLine);
+			}
+
+			return lines;
+		}
+
+
+		// ============================================================
+		// RANDOM MEME BUTTON
+		// ============================================================
+
+		randomButton.addEventListener(
+			"click",
+			getRandomMeme
+		);
+
+
+		// ============================================================
+		// START
+		// ============================================================
 
 		loadMemes();
+
 	</script>
 
 </body>
