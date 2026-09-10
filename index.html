@@ -2802,127 +2802,128 @@
 	function createTextBoxControls(
 		box
 	) {
-
+	
 		const container =
 			document.createElement(
 				"div"
 			);
-
+	
 		container.className =
 			"textBoxControls";
-
-
+	
+	
 		const title =
 			document.createElement(
 				"h3"
 			);
-
+	
 		title.innerText =
 			"Text Box " +
 			(box.index + 1);
-
+	
 		container.appendChild(
 			title
 		);
-
-
+	
+	
 		// TEXT
-
+	
 		const textLabel =
 			document.createElement(
 				"label"
 			);
-
+	
 		textLabel.innerText =
 			"Text";
-
+	
 		container.appendChild(
 			textLabel
 		);
-
-
+	
+	
 		const textInput =
 			document.createElement(
 				"input"
 			);
-
+	
 		textInput.type =
 			"text";
-
+	
 		textInput.placeholder =
 			getPlaceholder(
 				box.index,
 				currentMeme.box_count
 			);
-
+	
 		textInput.value =
 			box.text;
-
-
+	
+	
 		textInput.addEventListener(
 			"input",
 			function() {
-
+	
 				if (roundSubmitted) {
 					return;
 				}
-
+	
 				box.text =
 					textInput.value;
-
+	
 				drawMeme();
 			}
 		);
-
-
+	
+	
 		container.appendChild(
 			textInput
 		);
-
+	
+	
 		// FONT SIZE
-
+	
 		const sizeLabel =
 			document.createElement(
 				"label"
 			);
-
+	
 		sizeLabel.innerText =
 			"Font Size (%)";
-
+	
 		container.appendChild(
 			sizeLabel
 		);
-
-
+	
+	
 		const sizeInput =
 			document.createElement(
 				"input"
 			);
-
+	
 		sizeInput.type =
 			"number";
-
+	
 		sizeInput.className =
 			"numberInput";
-
+	
 		sizeInput.min = 1;
-
+	
 		sizeInput.max = 30;
-
+	
 		sizeInput.step = 1;
-
+	
 		sizeInput.value =
 			box.size;
-
-
+	
+	
 		sizeInput.addEventListener(
 			"input",
 			function() {
-
+	
 				if (roundSubmitted) {
 					return;
 				}
-
+	
 				box.size =
 					clamp(
 						Math.round(
@@ -2933,57 +2934,57 @@
 						1,
 						30
 					);
-
+	
 				sizeInput.value =
 					box.size;
-
+	
 				drawMeme();
 			}
 		);
-
-
+	
+	
 		container.appendChild(
 			sizeInput
 		);
-
-
+	
+	
 		// RESET
-
+	
 		const resetButton =
 			document.createElement(
 				"button"
 			);
-
+	
 		resetButton.className =
 			"resetButton";
-
+	
 		resetButton.innerText =
 			"Reset Position";
-
-
+	
+	
 		resetButton.addEventListener(
 			"click",
 			function() {
-
+	
 				if (roundSubmitted) {
 					return;
 				}
-
+	
 				box.x =
 					50;
-
+	
 				if (
 					currentMeme.box_count ===
 					2
 				) {
-
+	
 					box.y =
 						box.index === 0
 							? 10
 							: 90;
-
+	
 				} else {
-
+	
 					box.y =
 						10 +
 						(
@@ -2995,34 +2996,21 @@
 						) *
 						box.index;
 				}
-
-
-				xInput.value =
-					box.x;
-
-				yInput.value =
-					box.y;
-
+	
 				drawMeme();
 			}
 		);
-
-
+	
+	
 		container.appendChild(
 			resetButton
 		);
-
+	
 		controls.appendChild(
 			container
 		);
-
-
-		box.xInput =
-			xInput;
-
-		box.yInput =
-			yInput;
-
+	
+	
 		box.sizeInput =
 			sizeInput;
 	}
@@ -3771,17 +3759,6 @@
 				);
 
 
-			draggingBox.xInput.value =
-				draggingBox.x.toFixed(
-					1
-				);
-
-			draggingBox.yInput.value =
-				draggingBox.y.toFixed(
-					1
-				);
-
-
 			drawMeme();
 		}
 	);
@@ -3916,18 +3893,6 @@
 					0,
 					100
 				);
-
-
-			draggingBox.xInput.value =
-				draggingBox.x.toFixed(
-					1
-				);
-
-			draggingBox.yInput.value =
-				draggingBox.y.toFixed(
-					1
-				);
-
 
 			drawMeme();
 		},
