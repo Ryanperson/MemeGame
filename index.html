@@ -1003,13 +1003,43 @@
 		);
 
 		const status =
-			await realtimeChannel.subscribe();
+			await new Promise(function(resolve) {
 
-		if (status !== "SUBSCRIBED") {
+				realtimeChannel.subscribe(
+				function(status, error) {
+
+					console.log(
+						"Realtime subscription status:",
+						status,
+						error || ""
+					);
+
+					if (
+						status === "SUBSCRIBED" ||
+						status === "CHANNEL_ERROR" ||
+						status === "TIMED_OUT" ||
+						status === "CLOSED"
+					) {
+						resolve({
+							status: status,
+							error: error
+						});
+					}
+				}
+			);
+		});
+
+		if (status.status !== "SUBSCRIBED") {
 
 			console.error(
 				"Realtime subscription failed:",
-				status
+				status.status,
+				status.error
+			);
+
+			setMainMenuStatus(
+				"Realtime connection failed: " +
+				status.status
 			);
 
 			return false;
