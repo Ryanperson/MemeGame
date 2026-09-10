@@ -2033,30 +2033,35 @@
 			currentPhase !== "voting" ||
 			currentRoundNumber < 1 ||
 			votingIndex < 0 ||
-			votingIndex >= votingItems.length ||
-			localVoteMade
+			votingIndex >= votingItems.length
 		) {
 			return;
 		}
-
+	
 		const item = votingItems[votingIndex];
-
-		if (item.creatorId === myPeerId) {
+	
+		if (!item || item.creatorId === myPeerId) {
 			return;
 		}
-
+	
+		// Remember the new vote locally.
 		localVoteMade = true;
+	
 		votingVotes[item.id] ||= {};
 		votingVotes[item.id][myPeerId] = vote;
-
+	
+		// Update the visual selection.
 		voteButtons.forEach(function(button) {
 			button.classList.toggle(
 				"selected",
 				button.dataset.vote === vote
 			);
 		});
-
-		await supabaseClient
+	
+		showcaseStatus.innerText = "Vote changed to " + vote.toUpperCase() + ".";
+	
+		// Supabase upsert will UPDATE the existing vote if one already exists.
+		const result = await supabaseClient
 			.from("votes")
 			.upsert(
 				{
@@ -2065,9 +2070,18 @@
 					meme_id: item.id,
 					vote: vote
 				},
-				{ onConflict: "round_id,voter_id,meme_id" }
+				{
+					onConflict: "round_id,voter_id,meme_id"
+				}
 			);
-
+	
+		if (result.error) {
+			console.error("Vote save failed:", result.error);
+			showcaseStatus.innerText = "Failed to save vote.";
+			return;
+		}
+	
+		// Tell the host about the NEW vote.
 		const message = {
 			type: "vote",
 			senderId: myPeerId,
@@ -2076,7 +2090,7 @@
 			memeId: item.id,
 			vote: vote
 		};
-
+	
 		if (isHost) {
 			handleRemoteVote(message);
 		} else {
