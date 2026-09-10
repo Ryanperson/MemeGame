@@ -5,7 +5,6 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-```
 <title>Random Meme</title>
 
 <style>
@@ -33,6 +32,11 @@
 		background: #4caf50;
 		color: white;
 		border: none;
+		border-radius: 5px;
+	}
+
+	#saveButton:hover {
+		background: #45a049;
 	}
 
 	#memeName {
@@ -128,13 +132,11 @@
 		color: #bbb;
 	}
 </style>
-```
 
 </head>
 
 <body>
 
-```
 <h1>RANDOM MEME GENERATOR</h1>
 
 <button id="randomButton">
@@ -142,7 +144,7 @@
 </button>
 
 <button id="saveButton">
-	SAVE IMAGE
+	SAVE MEME
 </button>
 
 <div id="loading">
@@ -313,7 +315,7 @@
 				hideWhiteBar =
 					whiteBarCheckbox.checked;
 
-				loadMemeImage();
+				drawMeme();
 			}
 		);
 
@@ -356,7 +358,7 @@
 
 				y: 50,
 
-				size: 7.5,
+				size: 8,
 
 				index: i
 			};
@@ -580,10 +582,12 @@
 
 		sizeInput.max = 30;
 
-		sizeInput.step = 0.1;
+		// Whole numbers only
+		sizeInput.step = 1;
 
 		sizeInput.value =
 			box.size;
+
 
 		sizeInput.addEventListener(
 			"input",
@@ -591,12 +595,17 @@
 
 				box.size =
 					clamp(
-						parseFloat(
-							sizeInput.value
-						) || 1,
+						Math.round(
+							parseFloat(
+								sizeInput.value
+							) || 1
+						),
 						1,
 						30
 					);
+
+				sizeInput.value =
+					box.size;
 
 				drawMeme();
 			}
@@ -672,6 +681,8 @@
 		);
 
 
+		// Store input references
+
 		box.xInput =
 			xInput;
 
@@ -716,10 +727,6 @@
 
 	function loadMemeImage() {
 
-		if (!currentMeme) {
-			return;
-		}
-
 		currentImage =
 			new Image();
 
@@ -730,7 +737,11 @@
 		currentImage.onload =
 			function() {
 
-				setupCanvas();
+				memeCanvas.width =
+					currentImage.naturalWidth;
+
+				memeCanvas.height =
+					currentImage.naturalHeight;
 
 				drawMeme();
 			};
@@ -751,147 +762,6 @@
 
 
 	// ============================================================
-	// SET UP CANVAS
-	// ============================================================
-
-	function setupCanvas() {
-
-		if (!currentImage) {
-			return;
-		}
-
-
-		let cropHeight = 0;
-
-
-		// ========================================================
-		// FIND WHITE TOP AREA
-		// ========================================================
-
-		if (hideWhiteBar) {
-
-			const tempCanvas =
-				document.createElement("canvas");
-
-			tempCanvas.width =
-				currentImage.naturalWidth;
-
-			tempCanvas.height =
-				currentImage.naturalHeight;
-
-			const tempCtx =
-				tempCanvas.getContext("2d");
-
-			tempCtx.drawImage(
-				currentImage,
-				0,
-				0
-			);
-
-
-			const width =
-				tempCanvas.width;
-
-			const height =
-				tempCanvas.height;
-
-
-			/*
-			 * Look down the middle of the image
-			 * and find how far the white section goes.
-			 */
-
-			const imageData =
-				tempCtx.getImageData(
-					0,
-					0,
-					width,
-					height
-				).data;
-
-
-			const sampleX =
-				Math.floor(width / 2);
-
-
-			for (
-				let y = 0;
-				y < height;
-				y++
-			) {
-
-				const index =
-					(
-						y * width +
-						sampleX
-					) * 4;
-
-
-				const r =
-					imageData[index];
-
-				const g =
-					imageData[index + 1];
-
-				const b =
-					imageData[index + 2];
-
-
-				/*
-				 * Consider pixels close to white
-				 * to be part of the white bar.
-				 */
-
-				const isWhite =
-					r > 235 &&
-					g > 235 &&
-					b > 235;
-
-
-				if (!isWhite) {
-
-					cropHeight =
-						y;
-
-					break;
-				}
-			}
-
-
-			/*
-			 * Safety limit so a completely white
-			 * image doesn't disappear entirely.
-			 */
-
-			cropHeight =
-				Math.min(
-					cropHeight,
-					height - 1
-				);
-		}
-
-
-		memeCanvas.width =
-			currentImage.naturalWidth;
-
-
-		memeCanvas.height =
-			currentImage.naturalHeight -
-			cropHeight;
-
-
-		/*
-		 * Store how much was removed so
-		 * drawing the image/text uses the
-		 * cropped coordinate system.
-		 */
-
-		memeCanvas.dataset.cropHeight =
-			cropHeight;
-	}
-
-
-	// ============================================================
 	// DRAW MEME
 	// ============================================================
 
@@ -905,12 +775,6 @@
 		}
 
 
-		const cropHeight =
-			parseFloat(
-				memeCanvas.dataset.cropHeight || 0
-			);
-
-
 		ctx.clearRect(
 			0,
 			0,
@@ -920,22 +784,63 @@
 
 
 		// ========================================================
-		// DRAW IMAGE
+		// DRAW ORIGINAL IMAGE
 		// ========================================================
 
 		ctx.drawImage(
 			currentImage,
 			0,
-			cropHeight,
-			currentImage.naturalWidth,
-			currentImage.naturalHeight -
-			cropHeight,
-
-			0,
 			0,
 			memeCanvas.width,
 			memeCanvas.height
 		);
+
+
+		// ========================================================
+		// HIDE TOP WHITE BAR
+		// ========================================================
+
+		if (hideWhiteBar) {
+
+			const whiteBarHeight =
+				memeCanvas.height * 0.12;
+
+
+			const sampleY =
+				Math.min(
+					whiteBarHeight + 2,
+					memeCanvas.height - 1
+				);
+
+
+			const pixel =
+				ctx.getImageData(
+					Math.floor(
+						memeCanvas.width / 2
+					),
+					sampleY,
+					1,
+					1
+				).data;
+
+
+			ctx.fillStyle =
+				"rgb(" +
+				pixel[0] +
+				"," +
+				pixel[1] +
+				"," +
+				pixel[2] +
+				")";
+
+
+			ctx.fillRect(
+				0,
+				0,
+				memeCanvas.width,
+				whiteBarHeight
+			);
+		}
 
 
 		// ========================================================
@@ -984,10 +889,11 @@
 			ctx.strokeStyle =
 				"black";
 
+			// Thicker outline
 			ctx.lineWidth =
 				Math.max(
-					3,
-					fontSize * 0.08
+					5,
+					fontSize * 0.11
 				);
 
 			ctx.lineJoin =
@@ -1045,20 +951,100 @@
 
 		for (const line of lines) {
 
-			ctx.strokeText(
+			drawSpacedText(
 				line,
 				x,
-				startY
-			);
-
-			ctx.fillText(
-				line,
-				x,
-				startY
+				startY,
+				fontSize
 			);
 
 			startY +=
 				lineHeight;
+		}
+	}
+
+
+	// ============================================================
+	// DRAW SPACED TEXT
+	// ============================================================
+
+	function drawSpacedText(
+		text,
+		x,
+		y,
+		fontSize
+	) {
+
+		/*
+		 * Extra spacing between each character.
+		 * This gives the Impact text a little
+		 * more breathing room.
+		 */
+
+		const letterSpacing =
+			fontSize * 0.035;
+
+
+		const characters =
+			Array.from(text);
+
+
+		if (characters.length === 0) {
+			return;
+		}
+
+
+		let totalWidth = 0;
+
+
+		for (const character of characters) {
+
+			totalWidth +=
+				ctx.measureText(
+					character
+				).width;
+		}
+
+
+		totalWidth +=
+			letterSpacing *
+			(characters.length - 1);
+
+
+		let currentX =
+			x -
+			totalWidth / 2;
+
+
+		for (const character of characters) {
+
+			const characterWidth =
+				ctx.measureText(
+					character
+				).width;
+
+
+			const characterX =
+				currentX +
+				characterWidth / 2;
+
+
+			ctx.strokeText(
+				character,
+				characterX,
+				y
+			);
+
+			ctx.fillText(
+				character,
+				characterX,
+				y
+			);
+
+
+			currentX +=
+				characterWidth +
+				letterSpacing;
 		}
 	}
 
@@ -1091,9 +1077,9 @@
 
 
 			const width =
-				ctx.measureText(
+				getSpacedTextWidth(
 					testLine
-				).width;
+				);
 
 
 			if (
@@ -1125,6 +1111,54 @@
 
 
 		return lines;
+	}
+
+
+	// ============================================================
+	// GET SPACED TEXT WIDTH
+	// ============================================================
+
+	function getSpacedTextWidth(
+		text
+	) {
+
+		const fontSize =
+			parseFloat(
+				ctx.font.match(
+					/\d+(?:\.\d+)?/
+				)?.[0] || 20
+			);
+
+
+		const letterSpacing =
+			fontSize * 0.035;
+
+
+		const characters =
+			Array.from(text);
+
+
+		let width = 0;
+
+
+		for (const character of characters) {
+
+			width +=
+				ctx.measureText(
+					character
+				).width;
+		}
+
+
+		if (characters.length > 1) {
+
+			width +=
+				letterSpacing *
+				(characters.length - 1);
+		}
+
+
+		return width;
 	}
 
 
@@ -1166,9 +1200,9 @@
 
 			const textWidth =
 				Math.min(
-					ctx.measureText(
+					getSpacedTextWidth(
 						box.text
-					).width,
+					),
 					memeCanvas.width * 0.9
 				);
 
@@ -1260,9 +1294,9 @@
 
 			const textWidth =
 				Math.min(
-					ctx.measureText(
+					getSpacedTextWidth(
 						box.text
-					).width,
+					),
 					memeCanvas.width * 0.9
 				);
 
@@ -1663,7 +1697,7 @@
 
 
 	// ============================================================
-	// SAVE IMAGE
+	// SAVE MEME
 	// ============================================================
 
 	saveButton.addEventListener(
@@ -1679,21 +1713,17 @@
 
 
 			/*
-			 * Redraw once before saving so the
-			 * exported image contains everything.
+			 * First draw the meme normally.
 			 */
 
 			drawMeme();
 
 
 			/*
-			 * Temporarily remove the editor handles
-			 * from the saved image.
+			 * The editor handles are drawn on top
+			 * of the meme, so redraw everything
+			 * without the handles before saving.
 			 */
-
-			const currentTextBoxes =
-				textBoxes;
-
 
 			ctx.clearRect(
 				0,
@@ -1703,20 +1733,8 @@
 			);
 
 
-			const cropHeight =
-				parseFloat(
-					memeCanvas.dataset.cropHeight || 0
-				);
-
-
 			ctx.drawImage(
 				currentImage,
-				0,
-				cropHeight,
-				currentImage.naturalWidth,
-				currentImage.naturalHeight -
-				cropHeight,
-
 				0,
 				0,
 				memeCanvas.width,
@@ -1724,7 +1742,54 @@
 			);
 
 
-			for (const box of currentTextBoxes) {
+			// Reapply the white-bar option.
+
+			if (hideWhiteBar) {
+
+				const whiteBarHeight =
+					memeCanvas.height * 0.12;
+
+
+				const sampleY =
+					Math.min(
+						whiteBarHeight + 2,
+						memeCanvas.height - 1
+					);
+
+
+				const pixel =
+					ctx.getImageData(
+						Math.floor(
+							memeCanvas.width / 2
+						),
+						sampleY,
+						1,
+						1
+					).data;
+
+
+				ctx.fillStyle =
+					"rgb(" +
+					pixel[0] +
+					"," +
+					pixel[1] +
+					"," +
+					pixel[2] +
+					")";
+
+
+				ctx.fillRect(
+					0,
+					0,
+					memeCanvas.width,
+					whiteBarHeight
+				);
+			}
+
+
+			// Draw all text again.
+
+			for (const box of textBoxes) {
 
 				if (
 					box.text.trim() === ""
@@ -1768,8 +1833,8 @@
 
 				ctx.lineWidth =
 					Math.max(
-						3,
-						fontSize * 0.08
+						5,
+						fontSize * 0.11
 					);
 
 				ctx.lineJoin =
@@ -1786,7 +1851,7 @@
 
 
 			/*
-			 * Convert the entire canvas into a PNG.
+			 * Turn the entire canvas into one PNG.
 			 */
 
 			const imageURL =
@@ -1799,14 +1864,17 @@
 				document.createElement("a");
 
 
-			link.download =
-				"meme-" +
+			const safeName =
 				currentMeme.name
 					.replace(
 						/[^a-z0-9]/gi,
 						"-"
 					)
-					.toLowerCase() +
+					.toLowerCase();
+
+
+			link.download =
+				safeName +
 				".png";
 
 
@@ -1814,11 +1882,20 @@
 				imageURL;
 
 
+			document.body.appendChild(
+				link
+			);
+
 			link.click();
+
+			document.body.removeChild(
+				link
+			);
 
 
 			/*
-			 * Put the editor handles back.
+			 * Put the editor handles back
+			 * after saving.
 			 */
 
 			drawMeme();
@@ -1843,7 +1920,6 @@
 	loadMemes();
 
 </script>
-```
 
 </body>
 </html>
