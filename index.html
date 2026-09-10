@@ -57,12 +57,25 @@
 			max-height: 70vh;
 			background: black;
 			cursor: crosshair;
+			touch-action: none;
 		}
 
 		#controls {
 			width: 300px;
 			max-width: 90vw;
 			text-align: left;
+		}
+
+		#globalControls {
+			background: #333;
+			padding: 15px;
+			margin-bottom: 15px;
+			border-radius: 8px;
+		}
+
+		#globalControls label {
+			cursor: pointer;
+			font-size: 16px;
 		}
 
 		.textBoxControls {
@@ -169,6 +182,8 @@
 
 		let dragOffsetY = 0;
 
+		let hideWhiteBar = false;
+
 
 		// ============================================================
 		// LOAD MEMES
@@ -232,21 +247,83 @@
 			memeName.innerText =
 				currentMeme.name;
 
-			createTextBoxes();
+			createControls();
 
 			loadMemeImage();
 		}
 
 
 		// ============================================================
-		// CREATE TEXT BOXES
+		// CREATE ALL CONTROLS
 		// ============================================================
 
-		function createTextBoxes() {
+		function createControls() {
 
 			controls.innerHTML = "";
 
 			textBoxes = [];
+
+
+			// ========================================================
+			// GLOBAL CONTROLS
+			// ========================================================
+
+			const globalControls =
+				document.createElement("div");
+
+			globalControls.id =
+				"globalControls";
+
+
+			const whiteBarLabel =
+				document.createElement("label");
+
+
+			const whiteBarCheckbox =
+				document.createElement("input");
+
+			whiteBarCheckbox.type =
+				"checkbox";
+
+			whiteBarCheckbox.checked =
+				hideWhiteBar;
+
+
+			whiteBarCheckbox.addEventListener(
+				"change",
+				function() {
+
+					hideWhiteBar =
+						whiteBarCheckbox.checked;
+
+					drawMeme();
+				}
+			);
+
+
+			whiteBarLabel.appendChild(
+				whiteBarCheckbox
+			);
+
+			whiteBarLabel.appendChild(
+				document.createTextNode(
+					" Hide top white bar"
+				)
+			);
+
+
+			globalControls.appendChild(
+				whiteBarLabel
+			);
+
+			controls.appendChild(
+				globalControls
+			);
+
+
+			// ========================================================
+			// TEXT BOXES
+			// ========================================================
 
 			const boxCount =
 				currentMeme.box_count || 2;
@@ -268,7 +345,6 @@
 				};
 
 
-				// Default positions
 				if (boxCount === 2) {
 
 					if (i === 0) {
@@ -281,22 +357,25 @@
 
 					box.y =
 						10 +
-						(80 / Math.max(1, boxCount - 1)) * i;
+						(80 / Math.max(
+							1,
+							boxCount - 1
+						)) * i;
 				}
 
 
 				textBoxes.push(box);
 
-				createControls(box);
+				createTextBoxControls(box);
 			}
 		}
 
 
 		// ============================================================
-		// CREATE CONTROLS
+		// CREATE TEXT BOX CONTROLS
 		// ============================================================
 
-		function createControls(box) {
+		function createTextBoxControls(box) {
 
 			const container =
 				document.createElement("div");
@@ -314,7 +393,10 @@
 			container.appendChild(title);
 
 
-			// Text
+			// ========================================================
+			// TEXT
+			// ========================================================
+
 			const textLabel =
 				document.createElement("label");
 
@@ -327,7 +409,8 @@
 			const textInput =
 				document.createElement("input");
 
-			textInput.type = "text";
+			textInput.type =
+				"text";
 
 			textInput.placeholder =
 				getPlaceholder(
@@ -352,7 +435,10 @@
 			container.appendChild(textInput);
 
 
-			// X
+			// ========================================================
+			// X POSITION
+			// ========================================================
+
 			const xLabel =
 				document.createElement("label");
 
@@ -365,7 +451,8 @@
 			const xInput =
 				document.createElement("input");
 
-			xInput.type = "number";
+			xInput.type =
+				"number";
 
 			xInput.className =
 				"numberInput";
@@ -385,7 +472,9 @@
 
 					box.x =
 						clamp(
-							parseFloat(xInput.value) || 0,
+							parseFloat(
+								xInput.value
+							) || 0,
 							0,
 							100
 						);
@@ -397,7 +486,10 @@
 			container.appendChild(xInput);
 
 
-			// Y
+			// ========================================================
+			// Y POSITION
+			// ========================================================
+
 			const yLabel =
 				document.createElement("label");
 
@@ -410,7 +502,8 @@
 			const yInput =
 				document.createElement("input");
 
-			yInput.type = "number";
+			yInput.type =
+				"number";
 
 			yInput.className =
 				"numberInput";
@@ -430,7 +523,9 @@
 
 					box.y =
 						clamp(
-							parseFloat(yInput.value) || 0,
+							parseFloat(
+								yInput.value
+							) || 0,
 							0,
 							100
 						);
@@ -442,7 +537,10 @@
 			container.appendChild(yInput);
 
 
-			// Size
+			// ========================================================
+			// FONT SIZE
+			// ========================================================
+
 			const sizeLabel =
 				document.createElement("label");
 
@@ -455,7 +553,8 @@
 			const sizeInput =
 				document.createElement("input");
 
-			sizeInput.type = "number";
+			sizeInput.type =
+				"number";
 
 			sizeInput.className =
 				"numberInput";
@@ -475,7 +574,9 @@
 
 					box.size =
 						clamp(
-							parseFloat(sizeInput.value) || 1,
+							parseFloat(
+								sizeInput.value
+							) || 1,
 							1,
 							30
 						);
@@ -487,7 +588,10 @@
 			container.appendChild(sizeInput);
 
 
-			// Reset
+			// ========================================================
+			// RESET
+			// ========================================================
+
 			const resetButton =
 				document.createElement("button");
 
@@ -497,13 +601,17 @@
 			resetButton.innerText =
 				"Reset Position";
 
+
 			resetButton.addEventListener(
 				"click",
 				function() {
 
-					if (currentMeme.box_count === 2) {
+					box.x = 50;
 
-						box.x = 50;
+
+					if (
+						currentMeme.box_count === 2
+					) {
 
 						if (box.index === 0) {
 							box.y = 10;
@@ -513,43 +621,60 @@
 
 					} else {
 
-						box.x = 50;
-
 						box.y =
 							10 +
-							(80 / Math.max(
-								1,
-								currentMeme.box_count - 1
-							)) * box.index;
+							(
+								80 /
+								Math.max(
+									1,
+									currentMeme.box_count - 1
+								)
+							) *
+							box.index;
 					}
 
-					xInput.value = box.x;
 
-					yInput.value = box.y;
+					xInput.value =
+						box.x;
+
+					yInput.value =
+						box.y;
+
 
 					drawMeme();
 				}
 			);
 
-			container.appendChild(resetButton);
 
-			controls.appendChild(container);
+			container.appendChild(
+				resetButton
+			);
+
+			controls.appendChild(
+				container
+			);
 
 
-			// Save references for dragging updates
-			box.xInput = xInput;
+			// Store input references
+			box.xInput =
+				xInput;
 
-			box.yInput = yInput;
+			box.yInput =
+				yInput;
 
-			box.sizeInput = sizeInput;
+			box.sizeInput =
+				sizeInput;
 		}
 
 
 		// ============================================================
-		// PLACEHOLDERS
+		// PLACEHOLDER
 		// ============================================================
 
-		function getPlaceholder(index, boxCount) {
+		function getPlaceholder(
+			index,
+			boxCount
+		) {
 
 			if (boxCount === 1) {
 				return "Meme text...";
@@ -563,37 +688,46 @@
 				return "Bottom text...";
 			}
 
-			return "Text " + (index + 1) + "...";
+			return "Text " +
+				(index + 1) +
+				"...";
 		}
 
 
 		// ============================================================
-		// LOAD MEME IMAGE
+		// LOAD IMAGE
 		// ============================================================
 
 		function loadMemeImage() {
 
-			currentImage = new Image();
+			currentImage =
+				new Image();
 
-			currentImage.crossOrigin = "anonymous";
+			currentImage.crossOrigin =
+				"anonymous";
 
-			currentImage.onload = function() {
 
-				memeCanvas.width =
-					currentImage.naturalWidth;
+			currentImage.onload =
+				function() {
 
-				memeCanvas.height =
-					currentImage.naturalHeight;
+					memeCanvas.width =
+						currentImage.naturalWidth;
 
-				drawMeme();
-			};
+					memeCanvas.height =
+						currentImage.naturalHeight;
 
-			currentImage.onerror = function() {
+					drawMeme();
+				};
 
-				console.error(
-					"Failed to load meme image."
-				);
-			};
+
+			currentImage.onerror =
+				function() {
+
+					console.error(
+						"Failed to load meme image."
+					);
+				};
+
 
 			currentImage.src =
 				currentMeme.url;
@@ -613,6 +747,7 @@
 				return;
 			}
 
+
 			ctx.clearRect(
 				0,
 				0,
@@ -621,7 +756,10 @@
 			);
 
 
-			// Draw image
+			// ========================================================
+			// DRAW ORIGINAL IMAGE
+			// ========================================================
+
 			ctx.drawImage(
 				currentImage,
 				0,
@@ -631,19 +769,90 @@
 			);
 
 
+			// ========================================================
+			// HIDE TOP WHITE BAR
+			// ========================================================
+
+			if (hideWhiteBar) {
+
+				/*
+				 * Covers the top portion of the image.
+				 *
+				 * Change this value if the white bar
+				 * on your templates is taller/shorter.
+				 */
+
+				const whiteBarHeight =
+					memeCanvas.height * 0.12;
+
+
+				/*
+				 * Use the color from the area
+				 * immediately below the bar.
+				 *
+				 * This works better than always
+				 * using white.
+				 */
+
+				const sampleY =
+					Math.min(
+						whiteBarHeight + 2,
+						memeCanvas.height - 1
+					);
+
+
+				const pixel =
+					ctx.getImageData(
+						Math.floor(
+							memeCanvas.width / 2
+						),
+						sampleY,
+						1,
+						1
+					).data;
+
+
+				ctx.fillStyle =
+					"rgb(" +
+					pixel[0] +
+					"," +
+					pixel[1] +
+					"," +
+					pixel[2] +
+					")";
+
+
+				ctx.fillRect(
+					0,
+					0,
+					memeCanvas.width,
+					whiteBarHeight
+				);
+			}
+
+
+			// ========================================================
+			// DRAW TEXT
+			// ========================================================
+
 			for (const box of textBoxes) {
 
-				if (box.text.trim() === "") {
+				if (
+					box.text.trim() === ""
+				) {
 					continue;
 				}
+
 
 				const x =
 					memeCanvas.width *
 					(box.x / 100);
 
+
 				const y =
 					memeCanvas.height *
 					(box.y / 100);
+
 
 				const fontSize =
 					memeCanvas.width *
@@ -654,6 +863,7 @@
 					"bold " +
 					fontSize +
 					"px Impact, Arial Black, sans-serif";
+
 
 				ctx.textAlign =
 					"center";
@@ -686,7 +896,6 @@
 			}
 
 
-			// Draw handles after text
 			drawTextHandles();
 		}
 
@@ -711,11 +920,15 @@
 					maxWidth
 				);
 
+
 			const lineHeight =
 				fontSize * 1.05;
 
+
 			const totalHeight =
-				lines.length * lineHeight;
+				lines.length *
+				lineHeight;
+
 
 			let startY =
 				y -
@@ -737,7 +950,8 @@
 					startY
 				);
 
-				startY += lineHeight;
+				startY +=
+					lineHeight;
 			}
 		}
 
@@ -764,7 +978,10 @@
 				const testLine =
 					currentLine === ""
 						? word
-						: currentLine + " " + word;
+						: currentLine +
+							" " +
+							word;
+
 
 				const width =
 					ctx.measureText(
@@ -793,6 +1010,7 @@
 
 
 			if (currentLine !== "") {
+
 				lines.push(
 					currentLine
 				);
@@ -804,24 +1022,29 @@
 
 
 		// ============================================================
-		// DRAW DRAG HANDLES
+		// DRAW HANDLES
 		// ============================================================
 
 		function drawTextHandles() {
 
 			for (const box of textBoxes) {
 
-				if (box.text.trim() === "") {
+				if (
+					box.text.trim() === ""
+				) {
 					continue;
 				}
+
 
 				const x =
 					memeCanvas.width *
 					(box.x / 100);
 
+
 				const y =
 					memeCanvas.height *
 					(box.y / 100);
+
 
 				const fontSize =
 					memeCanvas.width *
@@ -849,6 +1072,7 @@
 						textWidth + 20
 					);
 
+
 				const handleHeight =
 					fontSize + 20;
 
@@ -858,12 +1082,17 @@
 
 				ctx.lineWidth = 2;
 
-				ctx.setLineDash([6, 4]);
+				ctx.setLineDash([
+					6,
+					4
+				]);
 
 
 				ctx.strokeRect(
-					x - handleWidth / 2,
-					y - handleHeight / 2,
+					x -
+						handleWidth / 2,
+					y -
+						handleHeight / 2,
 					handleWidth,
 					handleHeight
 				);
@@ -875,7 +1104,7 @@
 
 
 		// ============================================================
-		// FIND TEXT BOX UNDER MOUSE
+		// FIND BOX UNDER MOUSE
 		// ============================================================
 
 		function getBoxAtPosition(
@@ -884,7 +1113,8 @@
 		) {
 
 			for (
-				let i = textBoxes.length - 1;
+				let i =
+					textBoxes.length - 1;
 				i >= 0;
 				i--
 			) {
@@ -892,17 +1122,23 @@
 				const box =
 					textBoxes[i];
 
-				if (box.text.trim() === "") {
+
+				if (
+					box.text.trim() === ""
+				) {
 					continue;
 				}
+
 
 				const x =
 					memeCanvas.width *
 					(box.x / 100);
 
+
 				const y =
 					memeCanvas.height *
 					(box.y / 100);
+
 
 				const fontSize =
 					memeCanvas.width *
@@ -930,24 +1166,30 @@
 						textWidth + 30
 					);
 
+
 				const boxHeight =
 					fontSize + 30;
 
 
 				if (
 					mouseX >=
-						x - boxWidth / 2 &&
+						x -
+						boxWidth / 2 &&
 					mouseX <=
-						x + boxWidth / 2 &&
+						x +
+						boxWidth / 2 &&
 					mouseY >=
-						y - boxHeight / 2 &&
+						y -
+						boxHeight / 2 &&
 					mouseY <=
-						y + boxHeight / 2
+						y +
+						boxHeight / 2
 				) {
 
 					return box;
 				}
 			}
+
 
 			return null;
 		}
@@ -962,7 +1204,10 @@
 			function(event) {
 
 				const position =
-					getMousePosition(event);
+					getMousePosition(
+						event
+					);
+
 
 				const box =
 					getBoxAtPosition(
@@ -970,16 +1215,21 @@
 						position.y
 					);
 
+
 				if (!box) {
 					return;
 				}
 
-				draggingBox = box;
+
+				draggingBox =
+					box;
+
 
 				dragOffsetX =
 					position.x -
 					memeCanvas.width *
 					(box.x / 100);
+
 
 				dragOffsetY =
 					position.y -
@@ -1001,13 +1251,17 @@
 					return;
 				}
 
+
 				const position =
-					getMousePosition(event);
+					getMousePosition(
+						event
+					);
 
 
 				const newX =
 					position.x -
 					dragOffsetX;
+
 
 				const newY =
 					position.y -
@@ -1016,17 +1270,18 @@
 
 				draggingBox.x =
 					clamp(
-						(newX /
-							memeCanvas.width) *
+						newX /
+							memeCanvas.width *
 							100,
 						0,
 						100
 					);
 
+
 				draggingBox.y =
 					clamp(
-						(newY /
-							memeCanvas.height) *
+						newY /
+							memeCanvas.height *
 							100,
 						0,
 						100
@@ -1034,10 +1289,15 @@
 
 
 				draggingBox.xInput.value =
-					draggingBox.x.toFixed(1);
+					draggingBox.x.toFixed(
+						1
+					);
+
 
 				draggingBox.yInput.value =
-					draggingBox.y.toFixed(1);
+					draggingBox.y.toFixed(
+						1
+					);
 
 
 				drawMeme();
@@ -1059,7 +1319,7 @@
 
 
 		// ============================================================
-		// TOUCH SUPPORT
+		// TOUCH START
 		// ============================================================
 
 		memeCanvas.addEventListener(
@@ -1068,11 +1328,16 @@
 
 				event.preventDefault();
 
+
 				const touch =
 					event.touches[0];
 
+
 				const position =
-					getTouchPosition(touch);
+					getTouchPosition(
+						touch
+					);
+
 
 				const box =
 					getBoxAtPosition(
@@ -1080,25 +1345,36 @@
 						position.y
 					);
 
+
 				if (!box) {
 					return;
 				}
 
-				draggingBox = box;
+
+				draggingBox =
+					box;
+
 
 				dragOffsetX =
 					position.x -
 					memeCanvas.width *
 					(box.x / 100);
 
+
 				dragOffsetY =
 					position.y -
 					memeCanvas.height *
 					(box.y / 100);
 			},
-			{ passive: false }
+			{
+				passive: false
+			}
 		);
 
+
+		// ============================================================
+		// TOUCH MOVE
+		// ============================================================
 
 		memeCanvas.addEventListener(
 			"touchmove",
@@ -1106,20 +1382,26 @@
 
 				event.preventDefault();
 
+
 				if (!draggingBox) {
 					return;
 				}
 
+
 				const touch =
 					event.touches[0];
 
+
 				const position =
-					getTouchPosition(touch);
+					getTouchPosition(
+						touch
+					);
 
 
 				const newX =
 					position.x -
 					dragOffsetX;
+
 
 				const newY =
 					position.y -
@@ -1128,17 +1410,18 @@
 
 				draggingBox.x =
 					clamp(
-						(newX /
-							memeCanvas.width) *
+						newX /
+							memeCanvas.width *
 							100,
 						0,
 						100
 					);
 
+
 				draggingBox.y =
 					clamp(
-						(newY /
-							memeCanvas.height) *
+						newY /
+							memeCanvas.height *
 							100,
 						0,
 						100
@@ -1146,17 +1429,28 @@
 
 
 				draggingBox.xInput.value =
-					draggingBox.x.toFixed(1);
+					draggingBox.x.toFixed(
+						1
+					);
+
 
 				draggingBox.yInput.value =
-					draggingBox.y.toFixed(1);
+					draggingBox.y.toFixed(
+						1
+					);
 
 
 				drawMeme();
 			},
-			{ passive: false }
+			{
+				passive: false
+			}
 		);
 
+
+		// ============================================================
+		// TOUCH END
+		// ============================================================
 
 		memeCanvas.addEventListener(
 			"touchend",
@@ -1171,7 +1465,9 @@
 		// MOUSE POSITION
 		// ============================================================
 
-		function getMousePosition(event) {
+		function getMousePosition(
+			event
+		) {
 
 			const rect =
 				memeCanvas.getBoundingClientRect();
@@ -1180,6 +1476,7 @@
 			const scaleX =
 				memeCanvas.width /
 				rect.width;
+
 
 			const scaleY =
 				memeCanvas.height /
@@ -1205,7 +1502,9 @@
 		// TOUCH POSITION
 		// ============================================================
 
-		function getTouchPosition(touch) {
+		function getTouchPosition(
+			touch
+		) {
 
 			const rect =
 				memeCanvas.getBoundingClientRect();
@@ -1214,6 +1513,7 @@
 			const scaleX =
 				memeCanvas.width /
 				rect.width;
+
 
 			const scaleY =
 				memeCanvas.height /
